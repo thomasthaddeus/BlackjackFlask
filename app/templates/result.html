@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="text-center">
+    <h1>Game Over</h1>
+    <p class="lead">{{ result_message }}</p>
+    <a href="{{ url_for('blackjack.start_game') }}" class="btn btn-primary">Play Again</a>
+    <a href="{{ url_for('index') }}" class="btn btn-secondary">Home</a>
+</div>
+{% endblock %}

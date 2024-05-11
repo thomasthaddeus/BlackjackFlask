@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="text-center">
+    <h1>Welcome to Blackjack</h1>
+    <p class="lead">Ready to test your luck and skill against the dealer?</p>
+    <a href="{{ url_for('blackjack.start_game') }}" class="btn btn-lg btn-primary">Start New Game</a>
+</div>
+{% endblock %}
