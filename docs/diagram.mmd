@@ -1,0 +1,35 @@
+sequenceDiagram
+    participant U as User
+    participant F as Flask App
+    participant R as Routes
+    participant S as Session (Redis)
+    participant G as Game Logic
+
+    U->>F: Access website (GET /)
+    F->>R: Route to index()
+    R->>F: Render index.html
+
+    U->>F: Start game (POST /start)
+    F->>R: Route to start_game()
+    R->>G: Initialize new Game
+    G->>R: Return initialized game
+    R->>S: Save game to session
+    S->>R: Confirm save
+    R->>F: Redirect to game status
+
+    F->>R: Route to game_status()
+    R->>S: Fetch game from session
+    S->>R: Return game data
+    R->>G: Retrieve game status
+    G->>R: Return current status
+    R->>F: Render game_status.html with game data
+
+    U->>F: Make move (POST /make_move)
+    F->>R: Route to make_move()
+    R->>S: Fetch game from session
+    S->>R: Return game data
+    R->>G: Apply move
+    G->>R: Update game state
+    R->>S: Update game in session
+    S->>R: Confirm update
+    R->>F: Redirect to game status

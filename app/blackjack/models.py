@@ -7,16 +7,11 @@ Returns:
     _type_: _description_
 """
 
-from flask import session
-from utils import (
+import csv
+from random import shuffle
+from ..utils import (
     get_card_value,
     calculate_hand_value,
-    determine_best_move,
-    shuffle_deck,
-    setup_logging,
-    save_game_state,
-    load_game_state,
-    load_strategy,
 )
 
 
@@ -24,7 +19,7 @@ class Card:
     def __init__(self, rank, suit):
         self.rank = rank
         self.suit = suit
-        self.value = self.assign_value(rank)
+        self.value = get_card_value(self)
 
     def assign_value(self, rank):
         if rank in ["J", "Q", "K"]:
@@ -45,11 +40,18 @@ class Deck:
         self.cards = [Card(rank, suit) for suit in self.suits for rank in self.ranks]
         self.shuffle()
 
+    def shuffle_deck(self, deck):
+        """Shuffle the deck of cards."""
+        shuffle(deck)
+        return deck
+
     def shuffle(self):
-        shuffle_deck(self.cards)
+        self.shuffle_deck(self.cards)
 
     def deal(self):
-        return self.cards.pop()
+        if self.cards:
+            return self.cards.pop()
+        return None
 
 
 class Player:
@@ -59,38 +61,30 @@ class Player:
         self.bankroll = starting_bankroll
 
     def add_card(self, card):
-        try:
-            self.hand.append(card)
-            self.adjust_for_aces()
-        except Exception as e:
-            print(
-                f"Error adding card to hand: {e}"
-            )  # Log error or handle it appropriately
+        self.hand.append(card)
 
     def hand_value(self):
         return calculate_hand_value(self.hand)
 
-    def adjust_for_aces(self):
-        self.value = calculate_hand_value(self.hand)
+    def load_strategy(self, filename):
+        """
+        Load blackjack strategy from a CSV file into a dictionary.
 
-    def hit(self, deck, hand):
-        hand.add_card(deck.deal())
-        hand.adjust_for_ace()
+        :param filename: Path to the CSV file containing the strategy.
+        :return: Dictionary with player hands as keys and sub-dictionaries as
+          values, where each sub-dictionary maps dealer's card to an action.
+        """
+        strategy = {}
+        with open(filename, mode="r", encoding='utf-8', newline="") as file:
+            reader = csv.reader(file)
+            headers = next(reader)[1:]  # Skip the first header for 'my_hand'
 
-    def take_bet(self):
-        bet = session.get("bet", 0)
-        chips = session.get("total_chips", 100)  # Default to 100 if not set
-        if bet > chips:
-            return False, f"Sorry, your bet cannot exceed {chips}"
-        session["total_chips"] -= bet
-        return True, ""
+            for row in reader:
+                hand = row[0]  # Player's hand (e.g., '8', '9', 'a2', 'd2')
+                actions = row[1:]
+                strategy[hand] = dict(zip(headers, actions))
 
-    def hit_or_stand(self, deck, hand, action):
-        if action == "h":
-            self.hit(deck, hand)
-        elif action == "s":
-            return "stand"
-        return "continue"
+        return strategy
 
 
 class Dealer(Player):
@@ -107,7 +101,7 @@ class Game:
         self.deck = Deck()
         self.player = Player("Player 1")
         self.dealer = Dealer()
-        self.strategy = load_strategy("../data/blackjack_strategy.csv")
+        self.strategy = Player.load_strategy(self, "../data/blackjack_strategy.csv")
 
     def start_new_round(self):
         try:
@@ -116,32 +110,91 @@ class Game:
             self.dealer.hand = []
         except Exception as e:
             print(f"Error starting a new round: {e}")
+
             # Consider additional handling like retrying the round start or logging
 
     def player_turn(self):
-        try:
-            action = get_action(
-                self.strategy, str(self.player.hand_value()), self.dealer.hand[0].rank
-            )
+        dealer_card = self.dealer.hand[0] if self.dealer.hand else None
+        if dealer_card:
+            action = self.determine_best_move(self.player.hand, dealer_card)
             while action != "stand":
                 if action == "hit":
                     self.player.add_card(self.deck.deal())
-                action = get_action(
-                    self.strategy,
-                    str(self.player.hand_value()),
-                    self.dealer.hand[0].rank,
+                elif action == "Double Down" and self.double_down(self.player.hand):
+                    self.player.add_card(self.deck.deal())
+                    break  # End turn after double down
+                elif action == "Surrender":
+                    # return half the players bet
+                    # end hand for player
+                    break
+                action = self.determine_best_move(
+                    self.player.hand, dealer_card
                 )
-        except Exception as e:
-            print(f"Error during player's turn: {e}")
 
+    def determine_best_move(self, player_hand, dealer_card):
+        """Determine the best move based on the loaded blackjack strategy."""
+        player_value = calculate_hand_value(player_hand)
+        soft_hand = any(card.rank == "A" for card in player_hand)
+        hand_key = (
+            f"a{player_value - 11}"
+            if soft_hand and player_value > 21
+            else str(player_value)
+        )
 
-def get_action(strategy, player_hand, dealer_card):
-    """
-    Get the recommended action from the strategy.
+        dealer_rank = dealer_card.rank
+        dealer_rank = "T" if dealer_rank in ["J", "Q", "K"] else dealer_rank
 
-    :param strategy: Loaded strategy dictionary.
-    :param player_hand: The hand of the player (as a string, e.g., '8', 'a2').
-    :param dealer_card: The card the dealer shows (as a string, '2'-'A').
-    :return: Recommended action as a string.
-    """
-    return strategy.get(player_hand, {}).get(dealer_card, "Unknown")
+        move = self.strategy.get(hand_key, {}).get(
+            dealer_rank, "H"
+        )  # Default to 'Hit' if no strategy found
+
+        # Interpretation of moves when multiple options are given, e.g., 'DH' or 'RH'
+        if "D" in move and self.double_down(player_hand):
+            move = "Double Down"
+        elif "R" in move and self.surrender(player_hand, dealer_card):
+            move = "Surrender"
+        elif (
+            "D" in move or "R" in move
+        ):  # Handle cases where double down or surrender is not possible
+            move = "Hit"  # Default to 'Hit' if double down or surrender not possible
+        elif move == "S":
+            move = "Stand"
+        elif move == "H":
+            move = "Hit"
+
+        return move
+
+    def double_down(self, hand):
+        """Determine if the player can double down based on their hand."""
+        total = calculate_hand_value(hand)
+        has_ace = any(card.rank == "A" for card in hand)
+
+        # Total 9, 10, or 11 without an ace
+        if total in [9, 10, 11] and not has_ace:
+            return True
+        # Total 16, 17, or 18 with an ace
+        elif total in [16, 17, 18] and has_ace:
+            return True
+        return False
+
+    def surrender(self, player_hand, dealer_card):
+        """Determine if the player can surrender based on their hand and the dealer's card."""
+        player_value = calculate_hand_value(player_hand)
+        dealer_rank = (
+            dealer_card.rank if dealer_card.rank not in ["J", "Q", "K"] else "10"
+        )
+
+        # Convert ace to '10' if needed for simplicity
+        if dealer_rank == "A":
+            dealer_rank = "10"
+
+        # Check if the player's hand meets the criteria for surrendering
+        if player_value == 16 and dealer_rank in ["9", "10", "A"]:
+            # Ensure not to surrender if the hand consists of two 8s (split is preferable)
+            if len(player_hand) == 2 and all(card.rank == "8" for card in player_hand):
+                return False
+            return True
+        elif player_value == 15 and dealer_rank == "10":
+            return True
+
+        return False
