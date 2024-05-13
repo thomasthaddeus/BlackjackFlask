@@ -12,7 +12,7 @@ import os
 from app import create_app
 
 # Fetch the configuration name from the environment variable or default to 'DevelopmentConfig'
-config_name = os.getenv('FLASK_CONFIG', 'DevelopmentConfig')
+config_name = os.getenv('FLASK_CONFIG', 'DevConfig')
 app = create_app(config_name)
 
 if __name__ == "__main__":

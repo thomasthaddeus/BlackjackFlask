@@ -7,7 +7,6 @@ WORKDIR /code
 # Install any needed packages specified in requirements.txt
 COPY requirements2.txt /code/
 RUN pip install --no-cache-dir -r requirements2.txt
-RUN pip --upgrade setuptools
 
 # Copy the rest of the application
 COPY . /code
@@ -16,7 +15,10 @@ COPY . /code
 EXPOSE 5000
 
 # Define environment variable
-ENV NAME World
+# ENV NAME World
+
+# Dockerfile
+ENV FLASK_CONFIG=DevConfig
 
 # Run app.py when the container launches
 CMD ["python", "run.py"]
