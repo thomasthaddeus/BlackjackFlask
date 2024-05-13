@@ -1,3 +1,4 @@
+// game.js
 document.getElementById('hitButton').addEventListener('click', () => {
   performAction('hit');
 });
@@ -59,4 +60,17 @@ function updateGameState(data) {
 function showError(error) {
   console.error('Error:', error);
   document.getElementById('statusMessages').textContent = 'Error occurred.';
+}
+
+function buildStrategyTable(csvData) {
+  let table = '<table class="table table-bordered">';
+  csvData.forEach(function(row) {
+      table += '<tr>';
+      row.forEach(function(cell) {
+          table += '<td>' + cell + '</td>';
+      });
+      table += '</tr>';
+  });
+  table += '</table>';
+  document.getElementById('strategyTable').innerHTML = table;
 }

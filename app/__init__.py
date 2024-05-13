@@ -9,11 +9,11 @@ blueprints for different application components.
 import os
 from flask import Flask
 from flask_session import Session
-from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
-from config import DevConfig, ProdConfig, TestConfig
+from config import DevelopmentConfig, ProductionConfig, TestingConfig
+from .extensions import db
 
-def create_app(config):
+def create_app(config=None):
     """
     Create and configure an instance of the Flask application based on the
     FLASK_CONFIG environment variable.
@@ -21,20 +21,19 @@ def create_app(config):
     :return: The configured Flask application instance.
     """
     app = Flask(__name__)
-
     # Configure app based on the FLASK_CONFIG environment variable
-    config_type = os.getenv('FLASK_CONFIG', 'DevConfig')
+    config_type = os.getenv('FLASK_CONFIG', 'DevelopmentConfig')
     config = {
-        'DevConfig': DevConfig,
-        'TestConfig': TestConfig,
-        'ProdConfig': ProdConfig
-    }.get(config_type, DevConfig)
+        'DevelopmentConfig': DevelopmentConfig,
+        'TestingConfig': TestingConfig,
+        'ProductionConfig': ProductionConfig
+    }.get(config_type, DevelopmentConfig)
     app.config.from_object(config)
 
     # Initialize Flask extensions
-    db = SQLAlchemy(app)
+    db.init_app(app)
     Migrate(app, db)
-    if app.config['SESSION_TYPE'] == 'redis':
+    if app.config.get('SESSION_TYPE') == 'redis':
         Session(app)
 
     # Import and register blueprints

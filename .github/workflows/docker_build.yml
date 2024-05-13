@@ -1,0 +1,34 @@
+name: Docker Build and Test Workflow
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-and-run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to DockerHub (if needed)
+        uses: docker/login-action@v3
+        # with:
+        #   username: ${{ secrets.DOCKERHUB_USERNAME }}
+        #   password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+      - name: Run Docker build and run script
+        run: |
+          scripts/setup_docker.sh
+        env:
+          FLASK_CONFIG: DevConfig # You can customize this
+
+      - name: Additional steps if required
+        run: echo "Additional steps can be added here"

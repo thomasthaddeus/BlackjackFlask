@@ -5,23 +5,31 @@
 <div class="text-center">
     <h1>Welcome to Blackjack</h1>
     <p class="lead">Ready to test your luck and skill against the dealer?</p>
-    <a href="{{ url_for('blackjack.start_game') }}" class="btn btn-lg btn-primary">Start New Game</a>
+    <!-- Link for starting a new game; moved inside the game area for better flow -->
 </div>
 
 <div id="gameArea" class="mt-4">
-    <div id="playerHand"></div>
-    <div id="dealerHand"></div>
+    <!-- Moved player and dealer hands to be visible when game starts -->
+    <div id="playerHand" style="display:none;"></div> <!-- Initially hidden -->
+    <div id="dealerHand" style="display:none;"></div> <!-- Initially hidden -->
+
+    <!-- Game Controls -->
     <div id="gameControls">
         <button id="hitButton" class="btn btn-secondary">Hit</button>
         <button id="standButton" class="btn btn-secondary">Stand</button>
         <button id="doubleDownButton" class="btn btn-secondary">Double Down</button>
         <button id="splitButton" class="btn btn-secondary">Split</button>
         <button id="surrenderButton" class="btn btn-secondary">Surrender</button>
-        <input type="range" id="betSlider" min="1" max="100" value="1" class="form-range mt-2">
+        <div class="mt-2">
+            <label for="betSlider" class="form-label">Bet Amount</label>
+            <input type="range" id="betSlider" min="1" max="100" value="1" class="form-range">
+        </div>
         <button id="betButton" class="btn btn-success">Place Bet</button>
         <button id="newGameButton" class="btn btn-info">New Game</button>
     </div>
+
     <div id="statusMessages"></div>
 </div>
-<script src="{{ url_for('static', filename='scripts.js') }}"></script>
+
+<script src="{{ url_for('static', filename='game.js') }}"></script>
 {% endblock %}

@@ -413,3 +413,5 @@ pyrightconfig.json
 
 archive/
 gen_key.py
+migrations/
+sudo*
