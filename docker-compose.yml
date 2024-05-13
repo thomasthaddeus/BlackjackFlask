@@ -8,6 +8,7 @@ services:
     build:
       context: ./.docker
       dockerfile: Dockerfile.dev
+    # command: env
     command: python run.py
     volumes:
       - .:/app

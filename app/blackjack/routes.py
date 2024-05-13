@@ -20,7 +20,7 @@ from flask import (
 from .models import Game
 from ..utils import save_game_state, load_game_state, setup_logging
 
-setup_logging()
+logger = setup_logging()
 blackjack_bp = Blueprint("blackjack", __name__, template_folder="templates")
 
 
@@ -37,12 +37,20 @@ def start_game():
 
 @blackjack_bp.route("/bet", methods=["POST"])
 def place_bet():
-    bet = request.form.get("bet", type=int)
-    if bet is None or bet <= 0:
-        flash("Invalid bet amount. Please enter a valid number.")
+    game = load_game_state()
+    if not game:
+        flash("Start a new game before betting.")
         return redirect(url_for("blackjack.index"))
-    session["bet"] = bet
-    return redirect(url_for("blackjack.game_status"))
+
+    bet = request.form.get("bet", type=int)
+    try:
+        game.player.place_bet(bet)
+        save_game_state(game)
+        return redirect(url_for("blackjack.game_status"))
+    except ValueError as e:
+        flash(str(e))
+        return redirect(url_for("blackjack.index"))
+
 
 @blackjack_bp.route("/game_status")
 def game_status():

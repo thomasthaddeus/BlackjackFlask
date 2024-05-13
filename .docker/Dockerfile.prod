@@ -18,7 +18,7 @@ EXPOSE 5000
 # ENV NAME World
 
 # Dockerfile
-ENV FLASK_CONFIG=ProdConfig
+ENV FLASK_CONFIG=ProductionConfig
 
 # Run app.py when the container launches
 CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:create_app()"]

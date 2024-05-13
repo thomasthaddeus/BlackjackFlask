@@ -17,7 +17,7 @@ EXPOSE 5000
 # Define environment variable
 ENV FLASK_APP=run.py
 ENV FLASK_ENV=testing
-ENV FLASK_CONFIG=TestConfig
+ENV FLASK_CONFIG=TestingConfig
 
 # Run pytest
 CMD ["pytest", "-v"]

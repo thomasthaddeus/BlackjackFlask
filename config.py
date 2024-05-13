@@ -9,8 +9,8 @@ allowing for environment-specific optimizations.
 
 import os
 from dotenv import load_dotenv
+from redis import Redis
 load_dotenv()
-
 
 class Config:
     """Base config options."""
@@ -18,8 +18,9 @@ class Config:
     SESSION_TYPE = 'redis'
     SESSION_PERMANENT = False
     SESSION_REDIS = os.getenv('REDIS_URL', 'redis://localhost:6379')
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///yourdatabase.db'
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///blackjack.db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SESSION_USE_SIGNER = True
 
     # Constants for card values, assuming these are static across the game logic
     T, J, Q, K = 10, 10, 10, 10
@@ -47,17 +48,17 @@ class Config:
     AA = [A, A]
 
 
-class DevConfig(Config):
+class DevelopmentConfig(Config):
     DEBUG = True
     TESTING = False
     SQLALCHELMY_DATABASE_URI = os.getenv('DEV_DB_URI', 'sqlite:///dev.db')
 
-class TestConfig(Config):
+class TestingConfig(Config):
     DEBUG = True
     TESTING = True
     SQLALCHELMY_DATABASE_URI = os.getenv('TEST_DB_URI', 'sqlite:///test.db')
 
-class ProdConfig(Config):
+class ProductionConfig(Config):
     DEBUG = False
     TESTING = False
     SQLALCHELMY_DATABASE_URI = os.getenv('PROD_DB_URI', 'sqlite:///prod.db')
