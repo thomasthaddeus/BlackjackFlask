@@ -2,14 +2,14 @@
 FROM python:3.11-slim
 
 # Set the working directory in the container
-WORKDIR /code
+WORKDIR /app
 
 # Install any needed packages specified in requirements.txt
-COPY requirements2.txt /code/
+COPY requirements2.txt /app/
 RUN pip install --no-cache-dir -r requirements2.txt
 
 # Copy the rest of the application
-COPY . /code
+COPY . /app
 
 # Make port 5000 available to the world outside this container
 EXPOSE 5000
@@ -18,7 +18,7 @@ EXPOSE 5000
 # ENV NAME World
 
 # Dockerfile
-ENV FLASK_CONFIG=DevConfig
+ENV FLASK_CONFIG=ProdConfig
 
 # Run app.py when the container launches
 CMD ["python", "run.py"]
