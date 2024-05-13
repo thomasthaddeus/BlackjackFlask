@@ -1,0 +1,21 @@
+# Basic dependabot.yml configuration file
+
+version: 2
+updates:
+  # Enable version updates for npm
+  - package-ecosystem: "npm"
+    # Directory where package.json and package-lock.json are located
+    directory: "/frontend"
+    # Check the npm registry for updates every day (can be "live", "daily", "weekly", or "monthly")
+    schedule:
+      interval: "daily"
+
+  # Enable version updates for Python pip
+  - package-ecosystem: "pip"
+    # Directory where requirements.txt or setup.py is located
+    directory: "/"
+    # Check the Python package index for updates every week
+    schedule:
+      interval: "weekly"
+
+  # You can add more ecosystems here as needed

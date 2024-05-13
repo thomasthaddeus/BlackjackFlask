@@ -1,3 +1,5 @@
+# dev-requirements.txt
+
 Flask
 Flask-Session
 Flask-SQLAlchemy
@@ -18,3 +20,4 @@ Sphinx
 sphinx-autobuild
 gunicorn
 locust
+redis

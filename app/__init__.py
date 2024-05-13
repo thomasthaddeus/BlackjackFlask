@@ -13,7 +13,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from config import DevConfig, ProdConfig, TestConfig
 
-def create_app(config):
+def create_app(config_name):
     """
     Create and configure an instance of the Flask application based on the
     FLASK_CONFIG environment variable.
@@ -24,12 +24,12 @@ def create_app(config):
 
     # Configure app based on the FLASK_CONFIG environment variable
     config_type = os.getenv('FLASK_CONFIG', 'DevConfig')
-    config = {
+    config_name = {
         'DevConfig': DevConfig,
         'TestConfig': TestConfig,
         'ProdConfig': ProdConfig
     }.get(config_type, DevConfig)
-    app.config.from_object(config)
+    app.config.from_object(config_name)
 
     # Initialize Flask extensions
     db = SQLAlchemy(app)

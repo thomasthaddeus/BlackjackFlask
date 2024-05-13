@@ -9,7 +9,11 @@ so, starts the Flask application.
 """
 
 import os
+from dotenv import load_dotenv
 from app import create_app
+
+
+load_dotenv()
 
 # Fetch the configuration name from the environment variable or default to 'DevelopmentConfig'
 config_name = os.getenv('FLASK_CONFIG', 'DevConfig')

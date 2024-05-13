@@ -75,7 +75,7 @@ class Player:
           values, where each sub-dictionary maps dealer's card to an action.
         """
         strategy = {}
-        with open(filename, mode="r", encoding='utf-8', newline="") as file:
+        with open(filename, mode="r", encoding="utf-8", newline="") as file:
             reader = csv.reader(file)
             headers = next(reader)[1:]  # Skip the first header for 'my_hand'
 
@@ -127,9 +127,7 @@ class Game:
                     # return half the players bet
                     # end hand for player
                     break
-                action = self.determine_best_move(
-                    self.player.hand, dealer_card
-                )
+                action = self.determine_best_move(self.player.hand, dealer_card)
 
     def determine_best_move(self, player_hand, dealer_card):
         """Determine the best move based on the loaded blackjack strategy."""
