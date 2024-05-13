@@ -1,10 +1,35 @@
 """blackjack/models.py
-_summary_
 
-_extended_summary_
+This module defines the models for a blackjack game, including the Card, Deck,
+Player, Dealer, and Game classes.
+
+Classes:
+    Card: Represents a single card in the deck.
+    Deck: Represents a deck of cards, providing methods to shuffle and deal
+      cards.
+    Player: Represents a player in the game, holding their hand, bankroll, and
+      current bet.
+    Dealer: Inherits from Player, with specific behaviors for the dealer.
+    Game: Manages the flow of the game, including dealing cards, managing
+      player actions, and determining outcomes.
+
+Functions:
+    load_strategy: Loads a blackjack strategy from a CSV file.
+    retry_start_new_round: Attempts to start a new round multiple times in case
+      of failure.
+    handle_empty_deck: Manages the situation when the deck runs out of cards.
+    determine_best_move: Determines the best move for the player based on the
+      strategy.
+    double_down: Checks if the player can double down based on their hand.
+    surrender: Checks if the player should surrender based on their hand and
+      the dealer's card.
+    handle_surrender: Adjusts the player's bankroll when they surrender.
+    resolve_bets: Adjusts the player's bankroll based on the result of the
+      round.
 
 Returns:
-    _type_: _description_
+    Various types based on the functions, primarily dealing with game state and
+      player actions.
 """
 
 import csv
@@ -14,6 +39,14 @@ from ..utils import calculate_hand_value, assign_value, setup_logging
 logger = setup_logging()
 
 class Card:
+    """
+    Represents a single card in the deck.
+
+    Attributes:
+        rank (str): The rank of the card (e.g., '2', '3', 'K', 'A').
+        suit (str): The suit of the card (e.g., 'Hearts', 'Diamonds').
+        value (int): The value of the card, assigned based on its rank.
+    """
     def __init__(self, rank, suit):
         self.rank = rank
         self.suit = suit
@@ -23,6 +56,14 @@ class Card:
         return f"{self.rank} of {self.suit}"
 
 class Deck:
+    """
+    Represents a deck of cards, providing methods to shuffle and deal cards.
+
+    Attributes:
+        suits (list): The four suits in a standard deck of cards.
+        ranks (list): The thirteen ranks in a standard deck of cards.
+        cards (list): The list of Card objects in the deck.
+    """
     suits = ["Hearts", "Diamonds", "Clubs", "Spades"]
     ranks = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"]
 
@@ -35,11 +76,25 @@ class Deck:
         shuffle(self.cards)
 
     def deal(self):
+        """Deal a card from the deck.
+
+        Returns:
+            Card: The dealt card, or None if the deck is empty.
+        """
         if self.cards:
             return self.cards.pop()
         return None
 
 class Player:
+    """
+    Represents a player in the game, holding their hand, bankroll, and current bet.
+
+    Attributes:
+        name (str): The name of the player.
+        hand (list): The list of Card objects in the player's hand.
+        bankroll (int): The amount of money the player has.
+        current_bet (int): The current bet placed by the player.
+    """
     def __init__(self, name, starting_bankroll=1000):
         self.name = name
         self.hand = []
@@ -47,18 +102,37 @@ class Player:
         self.current_bet = 0
 
     def add_card(self, card):
+        """Add a card to the player's hand."""
         self.hand.append(card)
 
     def hand_value(self):
+        """Calculate the value of the player's hand.
+
+        Returns:
+            int: The total value of the hand.
+        """
         return calculate_hand_value(self.hand)
 
     def place_bet(self, amount):
+        """Place a bet for the current round.
+
+        Args:
+            amount (int): The amount to bet.
+
+        Raises:
+            ValueError: If the bet amount is invalid.
+        """
         if amount > 0 and amount <= self.bankroll:
             self.current_bet = amount
         else:
             raise ValueError("Invalid bet amount")
 
     def adjust_bankroll(self, result):
+        """Adjust the player's bankroll based on the result of the round.
+
+        Args:
+            result (str): The result of the round ('win', 'lose', 'surrender').
+        """
         if result == "win":
             self.bankroll += self.current_bet
         elif result == "lose":
@@ -67,14 +141,35 @@ class Player:
             self.bankroll -= self.current_bet / 2
 
 class Dealer(Player):
+    """
+    Inherits from Player, with specific behaviors for the dealer.
+
+    Methods:
+        play: The dealer's actions during their turn.
+    """
     def __init__(self):
         super().__init__("Dealer")
 
     def play(self, deck):
+        """The dealer's actions during their turn.
+
+        Args:
+            deck (Deck): The deck of cards used in the game.
+        """
         while self.hand_value() < 17:
             self.add_card(deck.deal())
 
 class Game:
+    """
+    Manages the flow of the game, including dealing cards, managing player actions, and determining outcomes.
+
+    Attributes:
+        deck (Deck): The deck of cards used in the game.
+        player (Player): The player in the game.
+        dealer (Dealer): The dealer in the game.
+        strategy (dict): The blackjack strategy loaded from a CSV file.
+        used_cards (list): The list of used cards in the game.
+    """
     def __init__(self):
         self.deck = Deck()
         self.player = Player("Player 1")
@@ -86,9 +181,12 @@ class Game:
         """
         Load blackjack strategy from a CSV file into a dictionary.
 
-        :param filename: Path to the CSV file containing the strategy.
-        :return: Dictionary with player hands as keys and sub-dictionaries as
-          values, where each sub-dictionary maps dealer's card to an action.
+        Args:
+            filename (str): Path to the CSV file containing the strategy.
+
+        Returns:
+            dict: Dictionary with player hands as keys and sub-dictionaries as values,
+                where each sub-dictionary maps dealer's card to an action.
         """
         strategy = {}
         with open(filename, mode="r", encoding="utf-8", newline="") as file:
@@ -103,6 +201,7 @@ class Game:
         return strategy
 
     def start_new_round(self):
+        """Start a new round of the game."""
         try:
             self.player.current_bet = 0
             self.deck = Deck()  # Reinitialize deck each round
@@ -116,9 +215,12 @@ class Game:
             logger.critical("Unexpected error starting a new round: %s", e)
             raise  # Re-raise to handle or log at a higher level
 
-
     def retry_start_new_round(self, attempts=3):
-        """Attempt to start a new round up to a specified number of times."""
+        """Attempt to start a new round up to a specified number of times.
+
+        Args:
+            attempts (int): The number of attempts to retry.
+        """
         for attempt in range(1, attempts + 1):
             try:
                 self.deck = Deck()  # Reinitialize deck each round
@@ -130,7 +232,7 @@ class Game:
                 if attempt == attempts:
                     logger.error("All retries failed. Unable to start a new round: %s", e)
                     raise ValueError("Failed to start new round after retries") from e
-                logger.warning("Retrying start of new round (%s/%s): %s",attempt, attempts, e)
+                logger.warning("Retrying start of new round (%s/%s): %s", attempt, attempts, e)
 
     def deal_initial_cards(self):
         """Deal initial cards to both player and dealer."""
@@ -139,6 +241,7 @@ class Game:
             self.dealer.add_card(self.deck.deal())
 
     def player_turn(self):
+        """Manage the player's turn based on the strategy."""
         dealer_card = self.dealer.hand[0] if self.dealer.hand else None
         if dealer_card:
             action = self.determine_best_move(self.player.hand, dealer_card)
@@ -154,16 +257,17 @@ class Game:
                         self.handle_surrender()
                         return
                 except ValueError as e:
-                    print("Game Error: %s", e)
+                    logger.error("Game Error: %s", e)
                     break  # Stop the game or handle the empty deck situation
                 action = self.determine_best_move(self.player.hand, dealer_card)
 
     def dealer_play(self):
+        """Manage the dealer's turn."""
         try:
             while self.dealer.hand_value() < 17:
                 self.dealer.add_card(self.deck.deal())
         except ValueError as e:
-            print("Game Error: %s", e)  # Log the error
+            logger.error("Game Error: %s", e)  # Log the error
             self.handle_empty_deck()  # Call a method to manage the situation
 
     def handle_empty_deck(self):
@@ -172,16 +276,23 @@ class Game:
         if len(self.used_cards) > 0:
             self.deck.cards = self.used_cards
             self.deck.shuffle()
-
-            print("Deck was empty. Reshuffled the used cards into the deck.")
+            logger.info("Deck was empty. Reshuffled the used cards into the deck.")
         else:
             # Option 2: End the round and possibly the game if no cards are left
-            print("No cards left to continue the game.")
+            logger.info("No cards left to continue the game.")
             self.end_round()
             # Consider signaling game over or resetting the game state
 
     def determine_best_move(self, player_hand, dealer_card):
-        """Determine the best move based on the loaded blackjack strategy."""
+        """Determine the best move based on the loaded blackjack strategy.
+
+        Args:
+            player_hand (list): The player's current hand.
+            dealer_card (Card): The dealer's visible card.
+
+        Returns:
+            str: The best move ('hit', 'stand', 'Double Down', 'Surrender').
+        """
         player_value = calculate_hand_value(player_hand)
         soft_hand = any(card.rank == "A" for card in player_hand)
         hand_key = (
@@ -199,9 +310,7 @@ class Game:
             move = "Double Down"
         elif "R" in move and self.surrender(player_hand, dealer_card):
             move = "Surrender"
-        elif (
-            "D" in move or "R" in move
-        ):  # Handle cases where double down or surrender is not possible
+        elif "D" in move or "R" in move:  # Handle cases where double down or surrender is not possible
             move = "Hit"  # Default to 'Hit' if double down or surrender not possible
         elif move == "S":
             move = "Stand"
@@ -211,7 +320,14 @@ class Game:
         return move
 
     def double_down(self, hand):
-        """Determine if the player can double down based on their hand."""
+        """Determine if the player can double down based on their hand.
+
+        Args:
+            hand (list): The player's current hand.
+
+        Returns:
+            bool: True if the player can double down, False otherwise.
+        """
         total = calculate_hand_value(hand)
         has_ace = any(card.rank == "A" for card in hand)
 
@@ -224,7 +340,15 @@ class Game:
         return False
 
     def surrender(self, plyr_hand, dealer_card):
-        """Determine if the player can surrender based on their hand and the dealer's card."""
+        """Determine if the player can surrender based on their hand and the dealer's card.
+
+        Args:
+            plyr_hand (list): The player's current hand.
+            dealer_card (Card): The dealer's visible card.
+
+        Returns:
+            bool: True if the player should surrender, False otherwise.
+        """
         player_value = calculate_hand_value(plyr_hand)
         dealer_rank = (
             dealer_card.rank if dealer_card.rank not in ["J", "Q", "K"] else "10"
@@ -246,6 +370,7 @@ class Game:
         return False
 
     def end_round(self):
+        """End the current round and determine the outcome."""
         player_score = self.player.hand_value()
         dealer_score = self.dealer.hand_value()
         result = "draw"
@@ -256,7 +381,13 @@ class Game:
         self.resolve_bets(result)
 
     def handle_surrender(self):
+        """Adjust the player's bankroll when they surrender."""
         self.player.adjust_bankroll("surrender")
 
     def resolve_bets(self, result):
+        """Adjust the player's bankroll based on the result of the round.
+
+        Args:
+            result (str): The result of the round ('win', 'lose', 'surrender').
+        """
         self.player.adjust_bankroll(result)

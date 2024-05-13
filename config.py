@@ -9,7 +9,6 @@ allowing for environment-specific optimizations.
 
 import os
 from dotenv import load_dotenv
-from redis import Redis
 load_dotenv()
 
 class Config:
@@ -35,7 +34,7 @@ class Config:
     A7 = [A, 7]
     A8 = [A, 8]
 
-    # doubles
+    # Doubles
     D2 = [2, 2]
     D3 = [3, 3]
     D4 = [4, 4]
@@ -44,23 +43,25 @@ class Config:
     D7 = [7, 7]
     D8 = [8, 8]
     D9 = [9, 9]
-    DT = [T, T] or [J, J] or [Q, Q] or [K, K]
+    DT = [10, 10]  # Clarified to use the value 10 for face cards
     AA = [A, A]
 
 
 class DevelopmentConfig(Config):
     DEBUG = True
     TESTING = False
-    SQLALCHELMY_DATABASE_URI = os.getenv('DEV_DB_URI', 'sqlite:///dev.db')
+    SQLALCHEMY_DATABASE_URI = os.getenv('DEV_DB_URI', 'sqlite:///dev.db')
+
 
 class TestingConfig(Config):
     DEBUG = True
     TESTING = True
-    SQLALCHELMY_DATABASE_URI = os.getenv('TEST_DB_URI', 'sqlite:///test.db')
+    SQLALCHEMY_DATABASE_URI = os.getenv('TEST_DB_URI', 'sqlite:///test.db')
+
 
 class ProductionConfig(Config):
     DEBUG = False
     TESTING = False
-    SQLALCHELMY_DATABASE_URI = os.getenv('PROD_DB_URI', 'sqlite:///prod.db')
+    SQLALCHEMY_DATABASE_URI = os.getenv('PROD_DB_URI', 'sqlite:///prod.db')
 
 # To use a configuration, the environment variable FLASK_CONFIG must be set to the appropriate class name.

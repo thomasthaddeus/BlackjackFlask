@@ -8,7 +8,6 @@ services:
     build:
       context: ./.docker
       dockerfile: Dockerfile.dev
-    # command: env
     command: python run.py
     volumes:
       - .:/app
@@ -17,5 +16,10 @@ services:
     environment:
       - FLASK_CONFIG=${FLASK_CONFIG}
       - REDIS_URL=${REDIS_URL}
+      - SECRET_KEY=${SECRET_KEY}
+      - DEV_DB_URI=${DEV_DB_URI}
+      - TEST_DB_URI=${TEST_DB_URI}
+      - PROD_DB_URI=${PROD_DB_URI}
+      - PORT=${PORT}
     depends_on:
       - redis

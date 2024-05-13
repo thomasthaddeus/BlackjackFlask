@@ -10,8 +10,7 @@ so, starts the Flask application.
 
 import os
 from dotenv import load_dotenv
-from app import create_app
-
+from .app import create_app
 
 load_dotenv()
 
@@ -26,7 +25,7 @@ if __name__ == "__main__":
     # - Setting up logging for production
     if app.config['DEBUG'] is False:
         # Production mode specific settings
-        app.run(host='0.0.0.0', port=os.getenv('PORT'), debug=False)
+        app.run(host='0.0.0.0', port=int(os.getenv('PORT', str(5000))), debug=False)
     else:
         # Development or Testing mode settings
-        app.run(host='127.0.0.1', port=os.getenv('PORT'), debug=True)
+        app.run(host='127.0.0.1', port=int(os.getenv('PORT', str(5000))), debug=True)
