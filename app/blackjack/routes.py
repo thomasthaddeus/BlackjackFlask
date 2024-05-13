@@ -87,5 +87,3 @@ def split():
 
     game.player.split()
     return redirect(url_for("blackjack.game_status"))
-
-# Remove duplicate and unused route handlers

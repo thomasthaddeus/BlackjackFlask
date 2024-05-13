@@ -18,6 +18,8 @@ class Config:
     SESSION_TYPE = 'redis'
     SESSION_PERMANENT = False
     SESSION_REDIS = os.getenv('REDIS_URL', 'redis://localhost:6379')
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///yourdatabase.db'
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # Constants for card values, assuming these are static across the game logic
     T, J, Q, K = 10, 10, 10, 10
