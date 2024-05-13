@@ -20,9 +20,9 @@ if __name__ == "__main__":
     # - Turning off debug mode
     # - Configuring a proper host and port
     # - Setting up logging for production
-    if config_name == 'ProductionConfig':
+    if app.config['DEBUG'] is False:
         # Production mode specific settings
-        app.run(host='0.0.0.0', port=os.getenv('PORT', 5000), debug=False)
+        app.run(host='0.0.0.0', port=os.getenv('PORT'), debug=False)
     else:
         # Development or Testing mode settings
-        app.run(host='127.0.0.1', port=5000, debug=True)
+        app.run(host='127.0.0.1', port=os.getenv('PORT'), debug=True)

@@ -7,14 +7,15 @@ environment. It initializes all necessary Flask extensions and registers
 blueprints for different application components.
 """
 
+import os
 from flask import Flask
-from flask_session import Session  # Import the session management extension
+from flask_session import Session
 from config import DevelopmentConfig, ProductionConfig, TestingConfig
-import logging
 
-def create_app():
+def create_app(config_name):
     """
-    Create and configure an instance of the Flask application based on the FLASK_CONFIG environment variable.
+    Create and configure an instance of the Flask application based on the
+    FLASK_CONFIG environment variable.
 
     :return: The configured Flask application instance.
     """
@@ -26,26 +27,14 @@ def create_app():
     }.get(config_name, DevelopmentConfig)
 
     app = Flask(__name__)
-    app.config.from_object(config_class)  # Dynamically load configuration
+    app.config.from_object(config_class)  # Apply configuration
 
     # Initialize Flask extensions
-    Session(app)  # Initialize session management with app
+    if app.config['SESSION_TYPE'] == 'redis':
+        Session(app)
 
     # Import and register blueprints
-    from .blackjack import blackjack_bp  # Make sure the import path is correct based on your project structure
+    from .blackjack import blackjack_bp  # pylint: disable=C0415
     app.register_blueprint(blackjack_bp, url_prefix='/blackjack')
 
-    # Additional setups can be added here
-    if app.config['DEBUG']:
-        # Setup for debug mode: logging, debug tools, etc.
-        app.logger.setLevel(logging.DEBUG)
-    elif app.config['TESTING']:
-        # Additional setup for testing environment
-        app.logger.setLevel(logging.CRITICAL)
-    else:
-        # Production-specific setup
-        app.logger.setLevel(logging.WARNING)
-
     return app
-
-# Note: Ensure that all necessary modules and packages are correctly installed and available in your environment

@@ -14,8 +14,8 @@ load_dotenv()
 
 class Config:
     """Base config options."""
-    SECRET_KEY = os.environ.get('SECRET_KEY')  # Strictly fetch from environment variable
-    SESSION_TYPE = 'redis'  # Change to Redis for better performance in session management
+    SECRET_KEY = os.environ.get('SECRET_KEY')
+    SESSION_TYPE = 'redis'
     SESSION_PERMANENT = False
     SESSION_REDIS = os.environ.get('REDIS_URL')  # Configure Redis URL
 
@@ -48,8 +48,8 @@ class Config:
 class DevelopmentConfig(Config):
     """Development configuration."""
     DEBUG = True
-    DATABASE_URI = os.environ.get('DEV_DATABASE_URI', 'sqlite:///dev.db')
     TESTING = False
+    DATABASE_URI = os.environ.get('DEV_DATABASE_URI', 'sqlite:///dev.db')
 
 class TestingConfig(Config):
     """Testing configuration."""
