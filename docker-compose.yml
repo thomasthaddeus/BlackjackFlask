@@ -1,4 +1,4 @@
-# version: '3.8'
+version: '3.8'
 services:
   redis:
     image: redis:latest
@@ -6,13 +6,13 @@ services:
       - "6379:6379"
   web:
     build:
-      context: ./.docker
+      context: ./
       dockerfile: Dockerfile.dev
-    command: python run.py
+    command: flask run --host=0.0.0.0 --port=5001
     volumes:
       - .:/app
     ports:
-      - "5000:5000"
+      - "5001:5001"
     environment:
       - FLASK_CONFIG=${FLASK_CONFIG}
       - REDIS_URL=${REDIS_URL}
@@ -20,6 +20,6 @@ services:
       - DEV_DB_URI=${DEV_DB_URI}
       - TEST_DB_URI=${TEST_DB_URI}
       - PROD_DB_URI=${PROD_DB_URI}
-      - PORT=${PORT}
+      - PORT=5001
     depends_on:
       - redis

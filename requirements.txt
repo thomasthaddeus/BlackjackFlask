@@ -3,5 +3,5 @@ Flask-Session
 Flask-Migrate
 Flask-SQLAlchemy
 python-dotenv
-redis
-Flask-Redis
+# redis
+# Flask-Redis

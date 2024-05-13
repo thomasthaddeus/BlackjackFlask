@@ -8,10 +8,10 @@ blueprints for different application components.
 
 import os
 from flask import Flask
-from flask_session import Session
 from flask_migrate import Migrate
 from config import DevelopmentConfig, ProductionConfig, TestingConfig
 from .extensions import db
+
 
 def create_app(config=None):
     """
@@ -33,8 +33,9 @@ def create_app(config=None):
     # Initialize Flask extensions
     db.init_app(app)
     Migrate(app, db)
-    if app.config.get('SESSION_TYPE') == 'redis':
-        Session(app)
+    # Removed Redis session initialization
+    # if app.config.get('SESSION_TYPE') == 'redis':
+    #     Session(app)
 
     # Import and register blueprints
     from .blackjack import blackjack_bp  # pylint: disable=C0415
