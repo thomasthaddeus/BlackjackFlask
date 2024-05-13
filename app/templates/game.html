@@ -1,3 +1,4 @@
+<!-- game.html -->
 {% extends "base.html" %}
 
 {% block content %}
@@ -19,8 +20,24 @@
       <p>Losses: <span id="losses">0</span></p>
       <p>Money: <span id="money">$1000</span></p>
       <h3>Strategy Guide</h3>
-      <div id="strategyTable"> <!-- Strategy table HTML goes here --> </div>
+      <div id="strategyTable"></div>
     </div>
   </section>
 </section>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var csvData = {{ csv_data | tojson }};
+    var table = '<table class="table table-bordered">';
+    csvData.forEach(function(row) {
+        table += '<tr>';
+        row.forEach(function(cell) {
+            table += '<td>' + cell + '</td>';
+        });
+        table += '</tr>';
+    });
+    table += '</table>';
+    document.getElementById('strategyTable').innerHTML = table;
+});
+</script>
 {% endblock %}

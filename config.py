@@ -14,10 +14,10 @@ load_dotenv()
 
 class Config:
     """Base config options."""
-    SECRET_KEY = os.environ.get('SECRET_KEY')  # Strictly fetch from environment variable
-    SESSION_TYPE = 'redis'  # Change to Redis for better performance in session management
+    SECRET_KEY = os.getenv('SECRET_KEY', 'your_fallback_secret_key')
+    SESSION_TYPE = 'redis'
     SESSION_PERMANENT = False
-    SESSION_REDIS = os.environ.get('REDIS_URL')  # Configure Redis URL
+    SESSION_REDIS = os.getenv('REDIS_URL', 'redis://localhost:6379')
 
     # Constants for card values, assuming these are static across the game logic
     T, J, Q, K = 10, 10, 10, 10
@@ -45,23 +45,19 @@ class Config:
     AA = [A, A]
 
 
-class DevelopmentConfig(Config):
-    """Development configuration."""
+class DevConfig(Config):
     DEBUG = True
-    DATABASE_URI = os.environ.get('DEV_DATABASE_URI', 'sqlite:///dev.db')
     TESTING = False
+    SQLALCHELMY_DATABASE_URI = os.getenv('DEV_DB_URI', 'sqlite:///dev.db')
 
-class TestingConfig(Config):
-    """Testing configuration."""
+class TestConfig(Config):
     DEBUG = True
     TESTING = True
-    DATABASE_URI = os.environ.get('TEST_DATABASE_URI', 'sqlite:///test.db')
+    SQLALCHELMY_DATABASE_URI = os.getenv('TEST_DB_URI', 'sqlite:///test.db')
 
-class ProductionConfig(Config):
-    """Production configuration."""
+class ProdConfig(Config):
     DEBUG = False
     TESTING = False
-    DATABASE_URI = os.environ.get('DATABASE_URI', 'sqlite:///prod.db')
-    # Consider using a scalable SQL database system or a NoSQL solution depending on your application's needs
+    SQLALCHELMY_DATABASE_URI = os.getenv('PROD_DB_URI', 'sqlite:///prod.db')
 
 # To use a configuration, the environment variable FLASK_CONFIG must be set to the appropriate class name.

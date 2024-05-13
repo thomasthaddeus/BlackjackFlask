@@ -1,63 +1,91 @@
-# blackjack/routes.py
+"""blackjack/routes.py
+_summary_
 
-import logging
-from flask import Blueprint, render_template, redirect, url_for, request, session, flash
+_extended_summary_
+
+Returns:
+    _type_: _description_
+"""
+
+from flask import (
+    Blueprint,
+    render_template,
+    redirect,
+    url_for,
+    request,
+    session,
+    flash,
+    jsonify,
+)
 from .models import Game
+from ..utils import save_game_state, load_game_state, setup_logging
 
-# Define the blueprint
-blackjack_bp = Blueprint('blackjack', __name__)
+setup_logging()
+blackjack_bp = Blueprint("blackjack", __name__, template_folder="templates")
 
-# Set up basic configuration at the beginning of your file
-logging.basicConfig(filename='blackjack.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-@blackjack_bp.route('/')
+@blackjack_bp.route("/")
 def index():
-    return render_template('index.html')
+    return render_template("index.html")
 
-@blackjack_bp.route('/bet', methods=['POST'])
-def place_bet():
-    bet = request.form.get('bet', type=int)
-    try:
-        if bet is None or bet < 0:
-            logging.warning('Attempt to place invalid bet amount')
-            flash('Invalid bet amount. Please enter a valid number.')
-            return redirect(url_for('blackjack.index'))
-        session['bet'] = bet
-        logging.info(f'Bet placed: {bet}')
-        return redirect(url_for('blackjack.game_status'))
-    except Exception as e:
-        logging.error(f'Error placing bet: {str(e)}')
-        flash('An error occurred while placing the bet.')
-        return redirect(url_for('blackjack.index'))
-
-@blackjack_bp.route('/status')
-def game_status():
-    try:
-        game = session.get('game')
-        if not game:
-            flash('No active game found. Please start a new game.')
-            return redirect(url_for('blackjack.index'))
-        player_hand = game.player.hand
-        dealer_hand = game.dealer.hand if game.dealer_turn_over else []
-        return render_template('status.html', player_hand=player_hand, dealer_hand=dealer_hand)
-    except Exception as e:
-        flash(f"An error occurred: {str(e)}")
-        return redirect(url_for('blackjack.index'))
-
-@blackjack_bp.route('/start', methods=['POST'])
+@blackjack_bp.route("/start", methods=["POST"])
 def start_game():
-    bet = request.form.get('bet', type=int)
-    if bet is None or bet < 0:
-        flash('Invalid bet amount. Please enter a valid number.')
-        return redirect(url_for('blackjack.index'))
-    session['bet'] = bet
-    return start_new_round()
+    game = Game()  # Create a new game instance
+    game.start_new_round()  # Start a new round
+    session["game"] = game  # Save game instance to session
+    return redirect(url_for("blackjack.game_status"))
 
-@blackjack_bp.route('/hit', methods=['POST'])
-def hit():
-    if 'game' not in session:
-        flash('No game in progress. Please start a new game.')
-        return redirect(url_for('blackjack.index'))
-    game = session['game']
-    game.player.hit(game.deck)
-    return redirect(url_for('blackjack.game_status'))
+@blackjack_bp.route("/bet", methods=["POST"])
+def place_bet():
+    bet = request.form.get("bet", type=int)
+    if bet is None or bet <= 0:
+        flash("Invalid bet amount. Please enter a valid number.")
+        return redirect(url_for("blackjack.index"))
+    session["bet"] = bet
+    return redirect(url_for("blackjack.game_status"))
+
+@blackjack_bp.route("/game_status")
+def game_status():
+    game = load_game_state()
+    if not game:
+        flash("No active game found. Please start a new game.")
+        return redirect(url_for("blackjack.index"))
+    # Assuming the game can tell us the current state and suggestions
+    return render_template("status.html", game=game)
+
+@blackjack_bp.route("/action/<action>", methods=["POST"])
+def handle_action(action):
+    game = load_game_state()
+    if not game:
+        return jsonify({"error": "No game in progress"}), 400
+
+    if action in ["hit", "stand", "double_down", "split", "surrender"]:
+        getattr(game.player, action)(game.deck)  # Assume these methods exist
+        save_game_state(game)  # Save changes to session
+        return jsonify(
+            {"message": f"Performed {action}", "game": game.serialize()}
+        )  # Ensure game can serialize its state
+
+    return jsonify({"error": "Invalid action"}), 400
+
+@blackjack_bp.route("/double_down", methods=["POST"])
+def double_down():
+    game = load_game_state()
+    if not game or not game.double_down(game.player.hand):
+        flash("Double down not allowed at this stage.")
+        return redirect(url_for("blackjack.game_status"))
+
+    game.player.double_down(game.deck)
+    return redirect(url_for("blackjack.game_status"))
+
+@blackjack_bp.route("/split", methods=["POST"])
+def split():
+    game = load_game_state()
+    if not game or not game.player.can_split():
+        flash("Cannot split at this time.")
+        return redirect(url_for("blackjack.game_status"))
+
+    game.player.split()
+    return redirect(url_for("blackjack.game_status"))
+
+# Remove duplicate and unused route handlers

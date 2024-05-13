@@ -1,0 +1,14 @@
+#gameArea {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+#playerHand, #dealerHand {
+  display: flex;
+}
+
+button {
+  margin: 5px;
+}

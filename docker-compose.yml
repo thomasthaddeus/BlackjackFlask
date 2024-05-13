@@ -1,0 +1,18 @@
+services:
+  redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+
+  web:
+    build: .
+    command: python run.py
+    volumes:
+      - .:/code
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_CONFIG=DevConfig
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - redis
