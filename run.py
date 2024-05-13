@@ -16,7 +16,7 @@ from app import create_app
 load_dotenv()
 
 # Fetch the configuration name from the environment variable or default to 'DevelopmentConfig'
-config_name = os.getenv('FLASK_CONFIG', 'DevConfig')
+config_name = os.getenv('FLASK_CONFIG', 'DevelopmentConfig')
 app = create_app(config_name)
 
 if __name__ == "__main__":
