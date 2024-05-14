@@ -2,9 +2,14 @@
 
 Welcome to the Blackjack Flask Application! This project implements a classic game of Blackjack using Python's Flask framework. Below you will find information on how to set up, run, and contribute to the project.
 
+## Overview
+
+The Blackjack Flask Application is a web-based implementation of the classic Blackjack game, built using Python's Flask framework. This project allows users to play Blackjack against a virtual dealer with features such as hit, stand, double down, and surrender.
+
 ## Table of Contents
 
 - [Blackjack Flask Application](#blackjack-flask-application)
+  - [Overview](#overview)
   - [Table of Contents](#table-of-contents)
   - [Features](#features)
   - [Installation](#installation)
@@ -13,15 +18,18 @@ Welcome to the Blackjack Flask Application! This project implements a classic ga
     - [Doubling Down](#doubling-down)
     - [Surrender](#surrender)
   - [API Endpoints](#api-endpoints)
+    - [Getting Started](#getting-started)
+    - [Documentation](#documentation)
   - [Contributing](#contributing)
   - [License](#license)
 
 ## Features
 
-- Classic Blackjack gameplay
-- Double Down and Surrender options
-- Interactive web-based interface
-- Real-time game updates
+- **Classic Blackjack Gameplay:** Experience traditional Blackjack with standard rules.
+- **Double Down and Surrender:** Implemented game mechanics for doubling down and surrendering.
+- **Interactive Web Interface:** User-friendly interface with real-time updates using JavaScript and Bootstrap.
+- **Game State Persistence:** MongoDB integration for tracking user games and state persistence.
+- **API Endpoints:** RESTful API for game actions and state management.
 
 ## Installation
 
@@ -82,15 +90,17 @@ After running the application, open your browser and navigate to `http://127.0.0
 - `POST /api/double`: Doubles the bet and draws one final card
 - `POST /api/surrender`: Surrenders the hand
 
+### Getting Started
+
+To set up and run the application locally, follow the detailed instructions provided in the [Installation](docs/source/installation.rst) section of the documentation.
+
+### Documentation
+
+Comprehensive documentation is available, covering all aspects of the application, including setup, usage, game rules, and API endpoints. Visit the [Documentation](https://your-readthedocs-url) to learn more.
+
 ## Contributing
 
-We welcome contributions! To contribute, please follow these steps:
-
-1. Fork the repository
-2. Create a new branch (`git checkout -b feature-branch`)
-3. Commit your changes (`git commit -am 'Add new feature'`)
-4. Push to the branch (`git push origin feature-branch`)
-5. Create a new Pull Request
+We welcome contributions from the community. Please see the [Contributing](docs/source/contributing.rst) section for guidelines on how to contribute to the project.
 
 ## License
 
