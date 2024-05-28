@@ -20,9 +20,9 @@ jobs:
 
       - name: Login to DockerHub (if needed)
         uses: docker/login-action@v3
-        # with:
-        #   username: ${{ secrets.DOCKERHUB_USERNAME }}
-        #   password: ${{ secrets.DOCKERHUB_PASSWORD }}
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
       - name: Run Docker build and run script
         run: |
