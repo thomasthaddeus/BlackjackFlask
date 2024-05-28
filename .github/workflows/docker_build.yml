@@ -28,7 +28,7 @@ jobs:
         run: |
           scripts/setup_docker.sh
         env:
-          FLASK_CONFIG: DevConfig # You can customize this
+          FLASK_CONFIG: DevelopmentConfig # You can customize this
 
       - name: Additional steps if required
         run: echo "Additional steps can be added here"
