@@ -1,4 +1,4 @@
-alembic==1.13.1
+alembic==1.13.2
 blinker==1.8.2
 cachelib==0.13.0
 click==8.1.7
