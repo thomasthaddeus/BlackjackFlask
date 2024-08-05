@@ -16,7 +16,7 @@ gunicorn = "^22.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^8.2"
-sphinx = "^7.3"
+sphinx = "^7.4"
 sphinx-rtd-theme = "^2.0"
 
 [build-system]
