@@ -15,7 +15,7 @@ pymongo = "^4.8"
 gunicorn = "^22.0"
 
 [tool.poetry.dev-dependencies]
-pytest = "^8.2"
+pytest = "^8.3"
 sphinx = "^7.4"
 sphinx-rtd-theme = "^2.0"
 
