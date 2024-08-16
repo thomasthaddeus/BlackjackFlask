@@ -12,7 +12,7 @@ flask = "^3.0"
 flask-migrate = "^4.0"
 flask-sqlalchemy = "^3.1"
 pymongo = "^4.8"
-gunicorn = "^22.0"
+gunicorn = "^23.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^8.3"
