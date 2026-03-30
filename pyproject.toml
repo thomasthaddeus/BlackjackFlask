@@ -9,7 +9,7 @@ packages = [{include = "blackjack", from = "src"}]
 [tool.poetry.dependencies]
 python = "^3.11"
 flask = "^3.0"
-flask-migrate = "^4.0"
+flask-migrate = "^4.1"
 flask-sqlalchemy = "^3.1"
 pymongo = "^4.9"
 gunicorn = "^23.0"
