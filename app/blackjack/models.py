@@ -33,6 +33,7 @@ Returns:
 """
 
 import csv
+from pathlib import Path
 from random import shuffle
 from ..utils import calculate_hand_value, assign_value, setup_logging
 
@@ -54,6 +55,10 @@ class Card:
 
     def __repr__(self):
         return f"{self.rank} of {self.suit}"
+
+    def serialize(self):
+        """Return a JSON-serializable card representation."""
+        return {"rank": self.rank, "suit": self.suit}
 
 class Deck:
     """
@@ -97,21 +102,48 @@ class Player:
     """
     def __init__(self, name, starting_bankroll=1000):
         self.name = name
-        self.hand = []
+        self.hands = [[]]
+        self.hand_bets = [0]
+        self.active_hand_index = 0
         self.bankroll = starting_bankroll
-        self.current_bet = 0
+
+    @property
+    def hand(self):
+        """Return the currently active hand."""
+        return self.hands[self.active_hand_index]
+
+    @hand.setter
+    def hand(self, value):
+        """Replace the currently active hand."""
+        self.hands[self.active_hand_index] = value
+
+    @property
+    def current_bet(self):
+        """Return the bet for the currently active hand."""
+        return self.hand_bets[self.active_hand_index]
+
+    @current_bet.setter
+    def current_bet(self, amount):
+        """Set the bet for the currently active hand."""
+        self.hand_bets[self.active_hand_index] = amount
+
+    def reset_for_round(self):
+        """Reset all hands and bets for a new round."""
+        self.hands = [[]]
+        self.hand_bets = [0]
+        self.active_hand_index = 0
 
     def add_card(self, card):
         """Add a card to the player's hand."""
         self.hand.append(card)
 
-    def hand_value(self):
+    def hand_value(self, hand=None):
         """Calculate the value of the player's hand.
 
         Returns:
             int: The total value of the hand.
         """
-        return calculate_hand_value(self.hand)
+        return calculate_hand_value(hand if hand is not None else self.hand)
 
     def place_bet(self, amount):
         """Place a bet for the current round.
@@ -124,8 +156,40 @@ class Player:
         """
         if amount > 0 and amount <= self.bankroll:
             self.current_bet = amount
+            logger.info("Placed bet of {amount} on hand {hand_index}", amount=amount, hand_index=self.active_hand_index + 1)
         else:
             raise ValueError("Invalid bet amount")
+
+    def can_split(self):
+        """Return whether the current hand can be split into two hands."""
+        return (
+            len(self.hands) == 1
+            and len(self.hand) == 2
+            and self.hand[0].rank == self.hand[1].rank
+            and self.current_bet > 0
+            and (self.current_bet * 2) <= self.bankroll
+        )
+
+    def split(self, deck):
+        """Split the current hand into two separate hands."""
+        if not self.can_split():
+            raise ValueError("Cannot split this hand")
+
+        first_card, second_card = self.hand
+        split_bet = self.current_bet
+        self.hands = [[first_card], [second_card]]
+        self.hand_bets = [split_bet, split_bet]
+        self.active_hand_index = 0
+        self.hands[0].append(deck.deal())
+        self.hands[1].append(deck.deal())
+        logger.info("Split hand into two hands with bet {bet}", bet=split_bet)
+
+    def advance_hand(self):
+        """Move to the next hand if one exists."""
+        if self.active_hand_index < len(self.hands) - 1:
+            self.active_hand_index += 1
+            return True
+        return False
 
     def adjust_bankroll(self, result):
         """Adjust the player's bankroll based on the result of the round.
@@ -139,6 +203,21 @@ class Player:
             self.bankroll -= self.current_bet
         elif result == "surrender":
             self.bankroll -= self.current_bet / 2
+
+    def serialize(self):
+        """Return a JSON-serializable player representation."""
+        return {
+            "name": self.name,
+            "hand": [card.serialize() for card in self.hand],
+            "hands": [
+                [card.serialize() for card in hand]
+                for hand in self.hands
+            ],
+            "hand_bets": self.hand_bets,
+            "active_hand_index": self.active_hand_index,
+            "bankroll": self.bankroll,
+            "current_bet": self.current_bet,
+        }
 
 class Dealer(Player):
     """
@@ -174,8 +253,12 @@ class Game:
         self.deck = Deck()
         self.player = Player("Player 1")
         self.dealer = Dealer()
-        self.strategy = self.load_strategy("../data/blackjack_strategy.csv")
+        strategy_path = Path(__file__).resolve().parents[1] / "data" / "blackjack_strategy.csv"
+        self.strategy = self.load_strategy(strategy_path)
         self.used_cards = []
+        self.awaiting_bet = True
+        self.round_complete = False
+        self.last_result = ""
 
     def load_strategy(self, filename):
         """
@@ -189,6 +272,7 @@ class Game:
                 where each sub-dictionary maps dealer's card to an action.
         """
         strategy = {}
+        logger.info("Loading blackjack strategy from {filename}", filename=filename)
         with open(filename, mode="r", encoding="utf-8", newline="") as file:
             reader = csv.reader(file)
             headers = next(reader)[1:]  # Skip the first header for 'my_hand'
@@ -200,13 +284,84 @@ class Game:
 
         return strategy
 
+    @staticmethod
+    def _deserialize_card(card_data):
+        """Build a card instance from serialized data."""
+        return Card(card_data["rank"], card_data["suit"])
+
+    @classmethod
+    def from_dict(cls, data):
+        """Restore a game instance from JSON-serializable session data."""
+        game = cls()
+        game.deck.cards = [
+            cls._deserialize_card(card_data)
+            for card_data in data.get("deck", [])
+        ]
+        player_data = data.get("player", {})
+        serialized_hands = player_data.get("hands")
+        if serialized_hands:
+            game.player.hands = [
+                [cls._deserialize_card(card_data) for card_data in hand]
+                for hand in serialized_hands
+            ]
+        else:
+            game.player.hands = [[
+                cls._deserialize_card(card_data)
+                for card_data in player_data.get("hand", [])
+            ]]
+        game.player.hand_bets = player_data.get(
+            "hand_bets",
+            [player_data.get("current_bet", 0)] * len(game.player.hands),
+        )
+        game.player.active_hand_index = player_data.get("active_hand_index", 0)
+        game.player.bankroll = player_data.get("bankroll", 1000)
+        game.dealer.hand = [
+            cls._deserialize_card(card_data)
+            for card_data in data.get("dealer", {}).get("hand", [])
+        ]
+        game.used_cards = [
+            cls._deserialize_card(card_data)
+            for card_data in data.get("used_cards", [])
+        ]
+        game.awaiting_bet = data.get("awaiting_bet", True)
+        game.round_complete = data.get("round_complete", False)
+        game.last_result = data.get("last_result", "")
+        return game
+
+    def serialize(self):
+        """Return a JSON-serializable game representation."""
+        return {
+            "player": self.player.serialize(),
+            "dealer": self.dealer.serialize(),
+            "deck": [card.serialize() for card in self.deck.cards],
+            "used_cards": [card.serialize() for card in self.used_cards],
+            "awaiting_bet": self.awaiting_bet,
+            "round_complete": self.round_complete,
+            "last_result": self.last_result,
+        }
+
+    def reset_for_new_game(self):
+        """Reset the round while preserving the player's bankroll."""
+        logger.info("Resetting game while preserving bankroll {bankroll}", bankroll=self.player.bankroll)
+        self.deck = Deck()
+        self.player.reset_for_round()
+        self.dealer.hand = []
+        self.used_cards = []
+        self.awaiting_bet = True
+        self.round_complete = False
+        self.last_result = ""
+
     def start_new_round(self):
         """Start a new round of the game."""
         try:
-            self.player.current_bet = 0
+            logger.info("Starting new round with bankroll {bankroll}", bankroll=self.player.bankroll)
             self.deck = Deck()  # Reinitialize deck each round
-            self.player.hand = []
+            self.player.reset_for_round()
             self.dealer.hand = []
+            self.used_cards = []
+            self.awaiting_bet = False
+            self.round_complete = False
+            self.last_result = ""
             self.deal_initial_cards()
         except ValueError as e:  # Assuming ValueError is raised from Deck on issues
             logger.error("Failed to start a new round: %s", e)
@@ -224,8 +379,12 @@ class Game:
         for attempt in range(1, attempts + 1):
             try:
                 self.deck = Deck()  # Reinitialize deck each round
-                self.player.hand = []
+                self.player.reset_for_round()
                 self.dealer.hand = []
+                self.used_cards = []
+                self.awaiting_bet = False
+                self.round_complete = False
+                self.last_result = ""
                 self.deal_initial_cards()
                 break  # Break out of loop if successful
             except ValueError as e:
@@ -239,6 +398,20 @@ class Game:
         for _ in range(2):  # Dealing two cards each to start
             self.player.add_card(self.deck.deal())
             self.dealer.add_card(self.deck.deal())
+        logger.debug(
+            "Initial cards dealt. Player hand: {player_hand}. Dealer up card: {dealer_card}",
+            player_hand=self.player.hand,
+            dealer_card=self.dealer.hand[0] if self.dealer.hand else None,
+        )
+
+    def _advance_or_resolve(self):
+        """Advance to the next player hand or finish the round."""
+        if self.player.advance_hand():
+            logger.info("Advanced to player hand {hand_index}", hand_index=self.player.active_hand_index + 1)
+            return False
+        self.dealer_play()
+        self.end_round()
+        return True
 
     def player_turn(self):
         """Manage the player's turn based on the strategy."""
@@ -371,23 +544,48 @@ class Game:
 
     def end_round(self):
         """End the current round and determine the outcome."""
-        player_score = self.player.hand_value()
         dealer_score = self.dealer.hand_value()
-        result = "draw"
-        if player_score > 21 or (dealer_score <= 21 and dealer_score > player_score):
-            result = "lose"
-        elif dealer_score > 21 or player_score > dealer_score:
-            result = "win"
-        self.resolve_bets(result)
+        results = []
+        for hand in self.player.hands:
+            player_score = self.player.hand_value(hand)
+            result = "draw"
+            if player_score > 21 or (dealer_score <= 21 and dealer_score > player_score):
+                result = "lose"
+            elif dealer_score > 21 or player_score > dealer_score:
+                result = "win"
+            results.append(result)
+        self.round_complete = True
+        self.awaiting_bet = True
+        self.last_result = ", ".join(
+            f"Hand {index + 1}: {result}"
+            for index, result in enumerate(results)
+        )
+        logger.info(
+            "Round complete. Dealer score {dealer_score}. Results: {results}",
+            dealer_score=dealer_score,
+            results=self.last_result,
+        )
+        self.resolve_bets(results)
 
     def handle_surrender(self):
         """Adjust the player's bankroll when they surrender."""
+        self.round_complete = True
+        self.awaiting_bet = True
+        self.last_result = "Surrender"
+        logger.info("Player surrendered hand {hand_index}", hand_index=self.player.active_hand_index + 1)
         self.player.adjust_bankroll("surrender")
 
     def resolve_bets(self, result):
         """Adjust the player's bankroll based on the result of the round.
 
         Args:
-            result (str): The result of the round ('win', 'lose', 'surrender').
+            result (str | list[str]): The result or results of the round.
         """
+        if isinstance(result, list):
+            active_index = self.player.active_hand_index
+            for index, hand_result in enumerate(result):
+                self.player.active_hand_index = index
+                self.player.adjust_bankroll(hand_result)
+            self.player.active_hand_index = active_index
+            return
         self.player.adjust_bankroll(result)

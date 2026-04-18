@@ -14,7 +14,7 @@
 <body>
   <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
     <div class="container-fluid">
-      <a class="navbar-brand" href="{{ url_for('index') }}">Blackjack</a>
+      <a class="navbar-brand" href="{{ url_for('blackjack.index') }}">Blackjack</a>
     </div>
   </nav>
   <div class="container mt-3">
@@ -26,7 +26,6 @@
       <span>Blackjack Game © 2024</span>
     </div>
   </footer>
-  <script href="{{ url_for('static', filename='js/game.js') }}"></script>
 </body>
 
 </html>

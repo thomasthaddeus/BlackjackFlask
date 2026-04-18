@@ -1,24 +1,22 @@
-# Use an official Python runtime as a parent image
 FROM python:3.11-slim
 
-# Set the working directory in the container
 WORKDIR /app
 
-# Install any needed packages specified in requirements.txt
-COPY requirements2.txt /app/
-RUN pip install --no-cache-dir -r requirements2.txt
+ENV POETRY_VIRTUALENVS_CREATE=false \
+    POETRY_NO_INTERACTION=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
 
-# Copy the rest of the application
+RUN pip install --no-cache-dir poetry==1.8.3
+
+COPY pyproject.toml poetry.lock /app/
+RUN poetry install --only main
+
 COPY . /app
 
-# Make port 5000 available to the world outside this container
-EXPOSE 5000
+EXPOSE 5001
 
-# Define environment variable
-# ENV NAME World
-
-# Dockerfile
 ENV FLASK_CONFIG=ProductionConfig
+ENV PORT=5001
 
-# Run app.py when the container launches
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:create_app()"]
+CMD ["gunicorn", "--bind", "0.0.0.0:5001", "run:app"]

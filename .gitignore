@@ -415,3 +415,8 @@ archive/
 gen_key.py
 migrations/
 sudo*
+
+.poetry-cache
+scripts/
+issues/
+pytest*

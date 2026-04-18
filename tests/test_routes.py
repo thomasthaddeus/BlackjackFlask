@@ -1,68 +1,98 @@
-"""test_routes.py
-_summary_
-
-_extended_summary_
-"""
+"""Route tests for the blackjack Flask blueprint."""
 
 import unittest
-from flask import Flask, session
-from app.blackjack.routes import blackjack_bp
-from app.blackjack.models import Game
+
+from app import create_app
+
 
 class TestBlackjackRoutes(unittest.TestCase):
+    """Exercise the current JSON and HTML route flow."""
+
     def setUp(self):
-        """Set up a Flask test client and register the blackjack blueprint."""
-        self.app = Flask(__name__)
-        self.app.config['TESTING'] = True
-        self.app.config['SECRET_KEY'] = 'test_key'  # Needed for session management in tests
-        self.app.register_blueprint(blackjack_bp)
+        self.app = create_app()
+        self.app.config.update(TESTING=True, SECRET_KEY="test_key")
         self.client = self.app.test_client()
 
-        # Use in-memory database for tests
-        self.app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+    def test_root_route_redirects_to_blackjack(self):
+        response = self.client.get("/")
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/blackjack/", response.headers["Location"])
 
     def test_index_route(self):
-        """Test the index route."""
-        response = self.client.get('/')
+        response = self.client.get("/blackjack/")
         self.assertEqual(response.status_code, 200)
-        self.assertIn('Welcome to Blackjack', response.get_data(as_text=True))
+        self.assertIn("Welcome to Blackjack", response.get_data(as_text=True))
 
-    def test_start_game(self):
-        """Test starting a new game."""
-        response = self.client.post('/start', follow_redirects=True)
+    def test_start_game_returns_waiting_for_bet_state(self):
+        response = self.client.post("/blackjack/start")
+        data = response.get_json()
         self.assertEqual(response.status_code, 200)
-        self.assertIsInstance(session.get('game'), Game)
-        self.assertIn('Game started', response.get_data(as_text=True))
+        self.assertTrue(data["awaitingBet"])
+        self.assertEqual(data["playerHand"], "No cards dealt yet.")
 
-    def test_place_bet(self):
-        """Test placing a bet."""
+    def test_place_bet_deals_a_new_hand(self):
         with self.client as client:
-            client.post('/start')  # Start a game first
-            response = client.post('/bet', data={'bet': 100}, follow_redirects=True)
+            client.post("/blackjack/start")
+            response = client.post("/blackjack/bet", json={"bet": 25})
+            data = response.get_json()
             self.assertEqual(response.status_code, 200)
-            self.assertEqual(session['bet'], 100)
+            self.assertFalse(data["awaitingBet"])
+            self.assertEqual(data["currentBet"], 25)
+            self.assertNotEqual(data["playerHand"], "No cards dealt yet.")
+            self.assertIn("Hidden", data["dealerHand"])
+
+    def test_cannot_place_bet_during_active_round(self):
+        with self.client as client:
+            client.post("/blackjack/start")
+            client.post("/blackjack/bet", json={"bet": 25})
+            response = client.post("/blackjack/bet", json={"bet": 10})
+            self.assertEqual(response.status_code, 400)
+            self.assertIn("Finish the current hand", response.get_json()["error"])
 
     def test_game_status(self):
-        """Test the game status route with an active game."""
         with self.client as client:
-            client.post('/start')
-            response = client.get('/game_status')
+            client.post("/blackjack/start")
+            client.post("/blackjack/bet", json={"bet": 15})
+            response = client.get("/blackjack/game_status")
             self.assertEqual(response.status_code, 200)
-            self.assertIn('Current game status', response.get_data(as_text=True))
+            self.assertIn("Current Game Status", response.get_data(as_text=True))
 
-    def test_handle_action(self):
-        """Test handling an action during a game."""
+    def test_handle_action_requires_bet_first(self):
         with self.client as client:
-            client.post('/start')
-            response = client.post('/action/hit', follow_redirects=True)
+            client.post("/blackjack/start")
+            response = client.post("/blackjack/action/hit")
+            self.assertEqual(response.status_code, 400)
+            self.assertIn("Place a bet", response.get_json()["error"])
+
+    def test_handle_hit_action(self):
+        with self.client as client:
+            client.post("/blackjack/start")
+            client.post("/blackjack/bet", json={"bet": 20})
+            response = client.post("/blackjack/action/hit")
             self.assertEqual(response.status_code, 200)
-            self.assertIn('Performed hit', response.get_data(as_text=True))
+            self.assertIn("playerHand", response.get_json())
 
     def test_invalid_action(self):
-        """Test sending an invalid action."""
-        response = self.client.post('/action/fly', follow_redirects=True)
-        self.assertEqual(response.status_code, 400)
-        self.assertIn('Invalid action', response.get_data(as_text=True))
+        with self.client as client:
+            client.post("/blackjack/start")
+            client.post("/blackjack/bet", json={"bet": 20})
+            response = client.post("/blackjack/action/fly")
+            self.assertEqual(response.status_code, 400)
+            self.assertIn("Invalid action", response.get_json()["error"])
 
-if __name__ == '__main__':
+    def test_new_game_preserves_bankroll(self):
+        with self.client as client:
+            client.post("/blackjack/start")
+            client.post("/blackjack/bet", json={"bet": 10})
+            surrender_response = client.post("/blackjack/action/surrender")
+            bankroll_after_surrender = surrender_response.get_json()["bankroll"]
+
+            restart_response = client.post("/blackjack/start")
+            restart_data = restart_response.get_json()
+            self.assertEqual(restart_response.status_code, 200)
+            self.assertEqual(restart_data["bankroll"], bankroll_after_surrender)
+            self.assertTrue(restart_data["awaitingBet"])
+
+
+if __name__ == "__main__":
     unittest.main()

@@ -1,0 +1,41 @@
+name: Poetry CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test-and-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Poetry
+        run: pip install poetry==1.8.3
+
+      - name: Configure Poetry
+        run: poetry config virtualenvs.create false
+
+      - name: Install dependencies
+        run: poetry install --with dev,docs
+
+      - name: Validate project metadata
+        run: poetry check
+
+      - name: Run tests
+        env:
+          FLASK_CONFIG: TestingConfig
+        run: poetry run pytest -q
+
+      - name: Build documentation
+        run: poetry run sphinx-build -b html docs/source docs/_build
