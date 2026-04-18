@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="text-center mb-4">
+    <h1>Current Game Status</h1>
+    <p class="lead">Continue the round from here or start a new one.</p>
+</div>
+
+<div
+    id="gameArea"
+    class="mt-4"
+    data-start-url="{{ url_for('blackjack.start_game') }}"
+    data-bet-url="{{ url_for('blackjack.place_bet') }}"
+    data-action-url-base="{{ url_for('blackjack.index') }}"
+>
+    <div class="card p-3 mb-3">
+        <h2 class="h5">Player Hand</h2>
+        <div id="playerHand">
+            {% if game.player.hand %}
+            {% for card in game.player.hand %}
+            {{ card.rank }} of {{ card.suit }}{% if not loop.last %}, {% endif %}
+            {% endfor %}
+            {% else %}
+            No cards dealt yet.
+            {% endif %}
+        </div>
+        <div id="playerValue" class="text-muted">
+            Value: {% if game.player.hand %}{{ game.player.hand_value() }}{% else %}0{% endif %}
+        </div>
+        <div id="playerHandsSummary" class="small mt-2 text-muted">
+            {% for hand in game.player.hands %}
+            <div>
+                Hand {{ loop.index }}{% if loop.index0 == game.player.active_hand_index %} (active){% endif %}:
+                {% for card in hand %}
+                {{ card.rank }} of {{ card.suit }}{% if not loop.last %}, {% endif %}
+                {% endfor %}
+                | Value: {{ game.player.hand_value(hand) }}
+                | Bet: {{ game.player.hand_bets[loop.index0] }}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="card p-3 mb-3">
+        <h2 class="h5">Dealer Hand</h2>
+        <div id="dealerHand">
+            {% if not game.dealer.hand %}
+            No cards dealt yet.
+            {% elif game.round_complete %}
+                {% for card in game.dealer.hand %}
+                {{ card.rank }} of {{ card.suit }}{% if not loop.last %}, {% endif %}
+                {% endfor %}
+            {% else %}
+                {{ game.dealer.hand[0].rank }} of {{ game.dealer.hand[0].suit }}{% if game.dealer.hand|length > 1 %}, Hidden{% endif %}
+            {% endif %}
+        </div>
+        <div id="dealerValue" class="text-muted">
+            Value: {% if game.round_complete and game.dealer.hand %}{{ game.dealer.hand_value() }}{% else %}Hidden{% endif %}
+        </div>
+    </div>
+
+    <div class="card p-3 mb-3">
+        <div><strong>Bankroll:</strong> <span id="bankroll">{{ game.player.bankroll }}</span></div>
+        <div><strong>Current Bet:</strong> <span id="currentBet">{{ game.player.current_bet }}</span></div>
+        <div id="roundState" class="text-muted">
+            {% if game.awaiting_bet %}
+            Place a bet to deal the next hand.
+            {% else %}
+            Hand in progress.
+            {% endif %}
+        </div>
+    </div>
+
+    <div id="gameControls">
+        <button id="hitButton" class="btn btn-secondary">Hit</button>
+        <button id="standButton" class="btn btn-secondary">Stand</button>
+        <button id="doubleDownButton" class="btn btn-secondary">Double Down</button>
+        <button id="splitButton" class="btn btn-secondary">Split</button>
+        <button id="surrenderButton" class="btn btn-secondary">Surrender</button>
+        <div class="mt-2">
+            <label for="betSlider" class="form-label">Bet Amount</label>
+            <input type="range" id="betSlider" min="1" max="100" value="1" class="form-range">
+        </div>
+        <button id="betButton" class="btn btn-success">Place Bet</button>
+        <button id="newGameButton" class="btn btn-info">New Game</button>
+    </div>
+
+    <div id="statusMessages" class="mt-3"></div>
+</div>
+
+<script src="{{ url_for('static', filename='js/game.js') }}"></script>
+{% endblock %}

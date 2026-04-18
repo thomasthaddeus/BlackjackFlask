@@ -9,27 +9,22 @@ Follow these steps to set up and run the Blackjack Flask application:
    cd BlackjackFlask
    ```
 
-2. **Set up a virtual environment**:
-
-   ```bash
-   python3 -m venv venv
-   source venv/bin/activate   # On Windows use `venv\Scripts\activate`
-   ```
+2. **Install Poetry** if it is not already available.
 
 3. **Install the required dependencies**:
 
    ```bash
-   pip install -r requirements.txt
+   poetry install
    ```
 
-4. **Set up MongoDB**:
-
-Ensure MongoDB is installed and running. Update the MongoDB connection string in the configuration file.
-
-5. **Run the application**:
+4. **Run the application**:
 
    ```bash
-   flask run
+   poetry run python run.py
    ```
 
-After running the application, open your browser and navigate to <http://127.0.0.1:5000> to start playing Blackjack.
+   To enable runtime logging::
+
+      poetry run python run.py --log-level INFO
+
+After running the application, open your browser and navigate to <http://127.0.0.1:5001> to start playing Blackjack.

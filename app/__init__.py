@@ -7,10 +7,14 @@ blueprints for different application components.
 """
 
 import os
-from flask import Flask
+from flask import Flask, redirect, url_for
 from flask_migrate import Migrate
 from config import DevelopmentConfig, ProductionConfig, TestingConfig
 from .extensions import db
+from .utils import setup_logging
+
+
+logger = setup_logging("app")
 
 
 def create_app(config=None):
@@ -29,6 +33,7 @@ def create_app(config=None):
         'ProductionConfig': ProductionConfig
     }.get(config_type, DevelopmentConfig)
     app.config.from_object(config)
+    logger.info("Creating Flask app with config {config_type}", config_type=config_type)
 
     # Initialize Flask extensions
     db.init_app(app)
@@ -40,5 +45,12 @@ def create_app(config=None):
     # Import and register blueprints
     from .blackjack import blackjack_bp  # pylint: disable=C0415
     app.register_blueprint(blackjack_bp, url_prefix='/blackjack')
+    logger.info("Registered blackjack blueprint at /blackjack")
+
+    @app.route("/")
+    def root():
+        """Redirect the application root to the blackjack UI."""
+        logger.debug("Redirecting root request to blackjack index.")
+        return redirect(url_for("blackjack.index"))
 
     return app

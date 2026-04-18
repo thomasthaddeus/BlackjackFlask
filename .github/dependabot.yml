@@ -10,11 +10,15 @@ updates:
     schedule:
       interval: "daily"
 
-  # Enable version updates for Python pip
-  - package-ecosystem: "pip"
-    # Directory where requirements.txt or setup.py is located
+  # Enable version updates for GitHub Actions
+  - package-ecosystem: "github-actions"
     directory: "/"
-    # Check the Python package index for updates every week
+    schedule:
+      interval: "weekly"
+
+  # Enable version updates for Poetry-managed Python dependencies
+  - package-ecosystem: "pip"
+    directory: "/"
     schedule:
       interval: "weekly"
 

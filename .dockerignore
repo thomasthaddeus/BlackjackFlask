@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+.git/
+.github/
+.venv/
+venv/
+env/
+instance/
+docs/_build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+node_modules/
+archive/

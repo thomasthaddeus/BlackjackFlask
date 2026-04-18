@@ -28,8 +28,8 @@ The Blackjack Flask Application is a web-based implementation of the classic Bla
 - **Classic Blackjack Gameplay:** Experience traditional Blackjack with standard rules.
 - **Double Down and Surrender:** Implemented game mechanics for doubling down and surrendering.
 - **Interactive Web Interface:** User-friendly interface with real-time updates using JavaScript and Bootstrap.
-- **Game State Persistence:** MongoDB integration for tracking user games and state persistence.
-- **API Endpoints:** RESTful API for game actions and state management.
+- **Session-Based Game State:** Game progress and bankroll persist across requests within a browser session.
+- **Poetry-Based Workflow:** Dependencies, local setup, and CI all run through Poetry.
 
 ## Installation
 
@@ -42,31 +42,29 @@ To get started with the Blackjack Flask application, follow these steps:
    cd BlackjackFlask
    ```
 
-2. **Set up a virtual environment:**
-
-   ```bash
-   python3 -m venv venv
-   source venv/bin/activate   # On Windows use `venv\Scripts\activate`
-   ```
+2. **Install Poetry** if it is not already available.
 
 3. **Install the required dependencies:**
 
    ```bash
-   pip install -r requirements.txt
+   poetry install
    ```
 
-4. **Set up MongoDB:**
-   Ensure MongoDB is installed and running. Update the MongoDB connection string in the configuration file.
-
-5. **Run the application:**
+4. **Run the application:**
 
    ```bash
-   flask run
+   poetry run python run.py
+   ```
+
+   To enable runtime logging:
+
+   ```bash
+   poetry run python run.py --log-level INFO
    ```
 
 ## Usage
 
-After running the application, open your browser and navigate to `http://127.0.0.1:5000` to start playing Blackjack.
+After running the application, open your browser and navigate to `http://127.0.0.1:5001` to start playing Blackjack.
 
 ## Game Rules
 
@@ -84,11 +82,13 @@ After running the application, open your browser and navigate to `http://127.0.0
 
 ## API Endpoints
 
-- `GET /api/start`: Starts a new game
-- `POST /api/hit`: Draws a card
-- `POST /api/stand`: Ends the player's turn
-- `POST /api/double`: Doubles the bet and draws one final card
-- `POST /api/surrender`: Surrenders the hand
+- `POST /blackjack/start`: Resets the game while preserving the player's bankroll
+- `POST /blackjack/bet`: Places a bet and deals a fresh hand
+- `POST /blackjack/action/hit`: Draws a card for the active hand
+- `POST /blackjack/action/stand`: Ends the active hand
+- `POST /blackjack/action/double_down`: Doubles the active hand when allowed
+- `POST /blackjack/action/split`: Splits the active hand when allowed
+- `POST /blackjack/action/surrender`: Surrenders the active hand
 
 ### Getting Started
 
@@ -96,7 +96,11 @@ To set up and run the application locally, follow the detailed instructions prov
 
 ### Documentation
 
-Comprehensive documentation is available, covering all aspects of the application, including setup, usage, game rules, and API endpoints. Visit the [Documentation](https://your-readthedocs-url) to learn more.
+Build the Sphinx documentation locally with:
+
+```bash
+poetry run sphinx-build -b html docs/source docs/_build
+```
 
 ## Contributing
 

@@ -5,15 +5,34 @@
 <div class="text-center">
     <h1>Welcome to Blackjack</h1>
     <p class="lead">Ready to test your luck and skill against the dealer?</p>
-    <!-- Link for starting a new game; moved inside the game area for better flow -->
 </div>
 
-<div id="gameArea" class="mt-4">
-    <!-- Moved player and dealer hands to be visible when game starts -->
-    <div id="playerHand" style="display:none;"></div> <!-- Initially hidden -->
-    <div id="dealerHand" style="display:none;"></div> <!-- Initially hidden -->
+<div
+    id="gameArea"
+    class="mt-4"
+    data-start-url="{{ url_for('blackjack.start_game') }}"
+    data-bet-url="{{ url_for('blackjack.place_bet') }}"
+    data-action-url-base="{{ url_for('blackjack.index') }}"
+>
+    <div class="card p-3 mb-3">
+        <h2 class="h5">Player Hand</h2>
+        <div id="playerHand">No cards dealt yet.</div>
+        <div id="playerValue" class="text-muted"></div>
+        <div id="playerHandsSummary" class="small mt-2 text-muted"></div>
+    </div>
 
-    <!-- Game Controls -->
+    <div class="card p-3 mb-3">
+        <h2 class="h5">Dealer Hand</h2>
+        <div id="dealerHand">No cards dealt yet.</div>
+        <div id="dealerValue" class="text-muted"></div>
+    </div>
+
+    <div class="card p-3 mb-3">
+        <div><strong>Bankroll:</strong> <span id="bankroll">1000</span></div>
+        <div><strong>Current Bet:</strong> <span id="currentBet">0</span></div>
+        <div id="roundState" class="text-muted">Place a bet to deal the next hand.</div>
+    </div>
+
     <div id="gameControls">
         <button id="hitButton" class="btn btn-secondary">Hit</button>
         <button id="standButton" class="btn btn-secondary">Stand</button>
@@ -31,5 +50,5 @@
     <div id="statusMessages"></div>
 </div>
 
-<script src="{{ url_for('static', filename='game.js') }}"></script>
+<script src="{{ url_for('static', filename='js/game.js') }}"></script>
 {% endblock %}

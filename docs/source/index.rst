@@ -1,7 +1,7 @@
 .. Blackjack Flask Application documentation master file
 
 Welcome to the Blackjack Flask Application documentation!
-========================================================
+=========================================================
 
 Contents:
 
