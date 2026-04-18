@@ -7,7 +7,7 @@ ENV POETRY_VIRTUALENVS_CREATE=false \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-RUN pip install --no-cache-dir poetry==1.8.3
+RUN pip install --no-cache-dir poetry==2.3.4
 
 COPY pyproject.toml poetry.lock /app/
 RUN poetry install --only main
