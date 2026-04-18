@@ -420,3 +420,6 @@ sudo*
 scripts/
 issues/
 pytest*
+
+docs/_build/
+docs/_build_check/
