@@ -11,6 +11,8 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 
+
+# TODO: clean up config class as redis is apparently not being utilized in docker and my constants seem like they are being utilized from app/data and not from here
 class Config:
     """Base config options."""
     SECRET_KEY = os.getenv('SECRET_KEY', 'your_fallback_secret_key')
@@ -20,6 +22,7 @@ class Config:
     SESSION_PERMANENT = False
     SQLALCHEMY_DATABASE_URI = 'sqlite:///blackjack.db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    DEVTOOLS_ENABLED = os.getenv('BLACKJACK_DEVTOOLS', '0') == '1'
 
     # Constants for card values, assuming these are static across the game logic
     T, J, Q, K = 10, 10, 10, 10
@@ -50,13 +53,16 @@ class DevelopmentConfig(Config):
     DEBUG = True
     TESTING = False
     SQLALCHEMY_DATABASE_URI = os.getenv('DEV_DB_URI', 'sqlite:///dev.db')
+    DEVTOOLS_ENABLED = os.getenv('BLACKJACK_DEVTOOLS', '1') == '1'
 
 class TestingConfig(Config):
     DEBUG = True
     TESTING = True
     SQLALCHEMY_DATABASE_URI = os.getenv('TEST_DB_URI', 'sqlite:///test.db')
+    DEVTOOLS_ENABLED = True
 
 class ProductionConfig(Config):
     DEBUG = False
     TESTING = False
     SQLALCHEMY_DATABASE_URI = os.getenv('PROD_DB_URI', 'sqlite:///prod.db')
+    DEVTOOLS_ENABLED = os.getenv('BLACKJACK_DEVTOOLS', '0') == '1'

@@ -13,6 +13,15 @@ class TestBlackjackRoutes(unittest.TestCase):
         self.app.config.update(TESTING=True, SECRET_KEY="test_key")
         self.client = self.app.test_client()
 
+    def _start_active_round(self, client, bet=25):
+        for _ in range(10):
+            client.post("/blackjack/start")
+            response = client.post("/blackjack/bet", json={"bet": bet})
+            data = response.get_json()
+            if response.status_code == 200 and not data["awaitingBet"]:
+                return response
+        self.fail("Could not start an active non-blackjack round after multiple attempts.")
+
     def test_root_route_redirects_to_blackjack(self):
         response = self.client.get("/")
         self.assertEqual(response.status_code, 302)
@@ -32,8 +41,7 @@ class TestBlackjackRoutes(unittest.TestCase):
 
     def test_place_bet_deals_a_new_hand(self):
         with self.client as client:
-            client.post("/blackjack/start")
-            response = client.post("/blackjack/bet", json={"bet": 25})
+            response = self._start_active_round(client, bet=25)
             data = response.get_json()
             self.assertEqual(response.status_code, 200)
             self.assertFalse(data["awaitingBet"])
@@ -41,10 +49,52 @@ class TestBlackjackRoutes(unittest.TestCase):
             self.assertNotEqual(data["playerHand"], "No cards dealt yet.")
             self.assertIn("Hidden", data["dealerHand"])
 
+    def test_game_status_shows_soft_total_display(self):
+        with self.client as client:
+            with client.session_transaction() as session:
+                session["game_state"] = {
+                    "player": {
+                        "name": "Player 1",
+                        "hand": [
+                            {"rank": "A", "suit": "Hearts"},
+                            {"rank": "6", "suit": "Clubs"},
+                        ],
+                        "hands": [[
+                            {"rank": "A", "suit": "Hearts"},
+                            {"rank": "6", "suit": "Clubs"},
+                        ]],
+                        "hand_bets": [25],
+                        "active_hand_index": 0,
+                        "bankroll": 1000,
+                        "current_bet": 25,
+                    },
+                    "dealer": {
+                        "name": "Dealer",
+                        "hand": [
+                            {"rank": "5", "suit": "Spades"},
+                            {"rank": "K", "suit": "Diamonds"},
+                        ],
+                        "hands": [[
+                            {"rank": "5", "suit": "Spades"},
+                            {"rank": "K", "suit": "Diamonds"},
+                        ]],
+                        "hand_bets": [0],
+                        "active_hand_index": 0,
+                        "bankroll": 1000,
+                        "current_bet": 0,
+                    },
+                    "awaiting_bet": False,
+                    "round_complete": False,
+                    "last_result": "",
+                }
+            response = client.get("/blackjack/game_status")
+            html = response.get_data(as_text=True)
+            self.assertEqual(response.status_code, 200)
+            self.assertIn("7 / 17", html)
+
     def test_cannot_place_bet_during_active_round(self):
         with self.client as client:
-            client.post("/blackjack/start")
-            client.post("/blackjack/bet", json={"bet": 25})
+            self._start_active_round(client, bet=25)
             response = client.post("/blackjack/bet", json={"bet": 10})
             self.assertEqual(response.status_code, 400)
             self.assertIn("Finish the current hand", response.get_json()["error"])
@@ -55,7 +105,9 @@ class TestBlackjackRoutes(unittest.TestCase):
             client.post("/blackjack/bet", json={"bet": 15})
             response = client.get("/blackjack/game_status")
             self.assertEqual(response.status_code, 200)
-            self.assertIn("Current Game Status", response.get_data(as_text=True))
+            page = response.get_data(as_text=True)
+            self.assertIn("Dealer Hand", page)
+            self.assertIn("Table Status", page)
 
     def test_handle_action_requires_bet_first(self):
         with self.client as client:
@@ -66,16 +118,16 @@ class TestBlackjackRoutes(unittest.TestCase):
 
     def test_handle_hit_action(self):
         with self.client as client:
-            client.post("/blackjack/start")
-            client.post("/blackjack/bet", json={"bet": 20})
+            self._start_active_round(client, bet=20)
             response = client.post("/blackjack/action/hit")
             self.assertEqual(response.status_code, 200)
-            self.assertIn("playerHand", response.get_json())
+            data = response.get_json()
+            self.assertIn("playerHand", data)
+            self.assertFalse(data["canDoubleDown"])
 
     def test_invalid_action(self):
         with self.client as client:
-            client.post("/blackjack/start")
-            client.post("/blackjack/bet", json={"bet": 20})
+            self._start_active_round(client, bet=20)
             response = client.post("/blackjack/action/fly")
             self.assertEqual(response.status_code, 400)
             self.assertIn("Invalid action", response.get_json()["error"])
@@ -92,6 +144,31 @@ class TestBlackjackRoutes(unittest.TestCase):
             self.assertEqual(restart_response.status_code, 200)
             self.assertEqual(restart_data["bankroll"], bankroll_after_surrender)
             self.assertTrue(restart_data["awaitingBet"])
+
+    def test_devtools_options_available_in_testing(self):
+        response = self.client.get("/blackjack/devtools/options")
+        data = response.get_json()
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(data["enabled"])
+        self.assertTrue(any(scenario["name"] == "split_eights" for scenario in data["scenarios"]))
+
+    def test_devtools_seed_applies_manual_round_state(self):
+        response = self.client.post(
+            "/blackjack/devtools/seed",
+            json={
+                "player": "8-Clubs,8-Diamonds",
+                "dealer": "6-Hearts,Q-Spades",
+                "deck": "3-Clubs,K-Hearts,2-Diamonds",
+                "bet": 50,
+                "bankroll": 1200,
+            },
+        )
+        data = response.get_json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(data["bankroll"], 1200)
+        self.assertEqual(data["currentBet"], 50)
+        self.assertEqual(len(data["game"]["player"]["hands"]), 1)
+        self.assertEqual(data["game"]["dealer"]["hand"][0]["rank"], "6")
 
 
 if __name__ == "__main__":

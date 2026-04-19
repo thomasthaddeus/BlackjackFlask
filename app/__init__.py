@@ -36,6 +36,9 @@ def create_app(config=None):
     logger.info("Creating Flask app with config {config_type}", config_type=config_type)
 
     # Initialize Flask extensions
+    # TODO: Replace the current session-only gameplay state with real SQLAlchemy
+    # persistence so bankrolls, player profiles, hand history, and saved games
+    # survive across browser sessions and can be queried/reported cleanly.
     db.init_app(app)
     Migrate(app, db)
     # Removed Redis session initialization
