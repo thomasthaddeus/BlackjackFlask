@@ -1,92 +1,239 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="text-center mb-4">
-    <h1>Current Game Status</h1>
-    <p class="lead">Continue the round from here or start a new one.</p>
-</div>
-
 <div
     id="gameArea"
-    class="mt-4"
+    class="table-layout mt-4"
     data-start-url="{{ url_for('blackjack.start_game') }}"
     data-bet-url="{{ url_for('blackjack.place_bet') }}"
     data-action-url-base="{{ url_for('blackjack.index') }}"
+    data-seat-count="{{ game.seat_count }}"
+    data-devtools-enabled="{{ 'true' if config.DEVTOOLS_ENABLED else 'false' }}"
+    data-devtools-options-url="{{ url_for('blackjack.devtools_options') }}"
+    data-devtools-seed-url="{{ url_for('blackjack.devtools_seed') }}"
 >
-    <div class="card p-3 mb-3">
-        <h2 class="h5">Player Hand</h2>
-        <div id="playerHand">
-            {% if game.player.hand %}
-            {% for card in game.player.hand %}
-            {{ card.rank }} of {{ card.suit }}{% if not loop.last %}, {% endif %}
-            {% endfor %}
-            {% else %}
-            No cards dealt yet.
-            {% endif %}
-        </div>
-        <div id="playerValue" class="text-muted">
-            Value: {% if game.player.hand %}{{ game.player.hand_value() }}{% else %}0{% endif %}
-        </div>
-        <div id="playerHandsSummary" class="small mt-2 text-muted">
-            {% for hand in game.player.hands %}
-            <div>
-                Hand {{ loop.index }}{% if loop.index0 == game.player.active_hand_index %} (active){% endif %}:
-                {% for card in hand %}
-                {{ card.rank }} of {{ card.suit }}{% if not loop.last %}, {% endif %}
-                {% endfor %}
-                | Value: {{ game.player.hand_value(hand) }}
-                | Bet: {{ game.player.hand_bets[loop.index0] }}
+    <div class="board-column">
+        <div class="table-panel hand-panel dealer-panel mb-3">
+            <div class="hand-header">
+                <h2 class="h5 mb-0">Dealer Hand</h2>
+                <div id="dealerValue" class="hand-value text-light-emphasis">
+                    Value: {% if game.round_complete and game.dealer.hand %}{{ game.dealer.hand_value_display() }}{% else %}Hidden{% endif %}
+                </div>
             </div>
-            {% endfor %}
+            <div id="dealerHand" class="card-row">
+                {% if not game.dealer.hand %}
+                No cards dealt yet.
+                {% elif game.round_complete %}
+                    {% for card in game.dealer.hand %}
+                    {{ card.rank }} of {{ card.suit }}{% if not loop.last %}, {% endif %}
+                    {% endfor %}
+                {% else %}
+                    {{ game.dealer.hand[0].rank }} of {{ game.dealer.hand[0].suit }}{% if game.dealer.hand|length > 1 %}, Hidden{% endif %}
+                {% endif %}
+            </div>
+            <div id="shoeStatus" class="shoe-status text-light-emphasis">
+                Shoe: {{ game.deck.remaining() }} cards remaining
+            </div>
         </div>
+
+        <div class="table-felt-shell mb-3">
+            <div class="table-lettering">
+                <div class="payout-arc">BLACKJACK PAYS 3 TO 2</div>
+                <div class="dealer-rule-line">DEALER MUST STAND ON 17 AND DRAW TO 16</div>
+                <div class="insurance-banner">
+                    <span class="insurance-arc">INSURANCE PAYS 2 TO 1</span>
+                </div>
+            </div>
+            <div class="seat-arc" aria-hidden="true">
+                <div class="seat-marker seat-1"><div id="seatSpot0" class="seat-spot"></div></div>
+                <div class="seat-marker seat-2"><div id="seatSpot1" class="seat-spot"></div></div>
+                <div class="seat-marker seat-3"><div id="seatSpot2" class="seat-spot"></div></div>
+                <div class="seat-marker seat-4"><div id="seatSpot3" class="seat-spot"></div></div>
+                <div class="seat-marker seat-5"><div id="seatSpot4" class="seat-spot"></div></div>
+                <div class="seat-marker seat-6"><div id="seatSpot5" class="seat-spot"></div></div>
+                <div class="seat-marker seat-7"><div id="seatSpot6" class="seat-spot"></div></div>
+            </div>
+            <div class="table-panel hand-panel player-panel">
+                <div id="playerHands" class="player-hands-grid">
+                    {% for hand in game.player.hands %}
+                    <div class="split-hand-panel{% if loop.index0 == game.player.active_hand_index %} active{% endif %}">
+                        <div class="split-hand-header">
+                            <span>Hand {{ loop.index }}{% if loop.index0 == game.player.active_hand_index %} (active){% endif %}</span>
+                            <span>Value: {{ game.player.hand_value_display(hand) }}</span>
+                        </div>
+                        <div class="card-row">
+                            {% if hand %}
+                                {% for card in hand %}
+                                {{ card.rank }} of {{ card.suit }}{% if not loop.last %}, {% endif %}
+                                {% endfor %}
+                            {% else %}
+                            No cards dealt yet.
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="table-panel controls-panel">
+            <div class="control-buttons">
+                <button id="hitButton" class="btn btn-secondary">Hit</button>
+                <button id="standButton" class="btn btn-secondary">Stand</button>
+                <button id="doubleDownButton" class="btn btn-secondary">Double Down</button>
+                <button id="splitButton" class="btn btn-secondary">Split</button>
+                <button id="surrenderButton" class="btn btn-secondary">Surrender</button>
+            </div>
+        </div>
+
+        <div id="statusMessages" class="status-messages mt-3"></div>
     </div>
 
-    <div class="card p-3 mb-3">
-        <h2 class="h5">Dealer Hand</h2>
-        <div id="dealerHand">
-            {% if not game.dealer.hand %}
-            No cards dealt yet.
-            {% elif game.round_complete %}
-                {% for card in game.dealer.hand %}
-                {{ card.rank }} of {{ card.suit }}{% if not loop.last %}, {% endif %}
-                {% endfor %}
-            {% else %}
-                {{ game.dealer.hand[0].rank }} of {{ game.dealer.hand[0].suit }}{% if game.dealer.hand|length > 1 %}, Hidden{% endif %}
-            {% endif %}
+    <aside class="strategy-panel" aria-live="polite">
+        <div class="strategy-dialog sidebar-status mb-3">
+            <h2 class="h5">Betting & Table Status</h2>
+            <div class="bankroll-row"><strong>Bankroll:</strong> <span id="bankroll">{{ game.player.bankroll }}</span></div>
+            <div class="bet-panel">
+                <label for="betSlider" class="form-label mb-0">Bet Amount</label>
+                <div class="bet-slider-row">
+                    <span class="bet-edge">$1</span>
+                    <input type="range" id="betSlider" min="1" max="100" value="1" class="form-range">
+                    <span class="bet-edge">$100</span>
+                </div>
+                <div class="bet-value-display">
+                    <div class="bet-primary">$<span id="betValue">1</span></div>
+                    <div class="bet-inline-help">
+                        <button type="button" class="roundstate-help" aria-label="Show table status">
+                            i
+                            <span id="roundStatePopup" class="roundstate-popup">
+                                {% if game.awaiting_bet %}
+                                Place a bet to deal the next hand.
+                                {% else %}
+                                Hand in progress.
+                                {% endif %}
+                            </span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="control-buttons mt-3">
+                <button id="betButton" class="btn btn-success">Place Bet</button>
+                <button id="newGameButton" class="btn btn-info">Next Hand</button>
+            </div>
         </div>
-        <div id="dealerValue" class="text-muted">
-            Value: {% if game.round_complete and game.dealer.hand %}{{ game.dealer.hand_value() }}{% else %}Hidden{% endif %}
+        <div class="strategy-dialog">
+            <div class="strategy-header">
+                <h2 class="h5 mb-0">Strategy Guide</h2>
+                <button type="button" class="strategy-help" aria-label="Show strategy help">
+                    ?
+                    <span class="strategy-help-popup">Follow the recommended move based on your active hand and the dealer's up card.</span>
+                </button>
+            </div>
+            <p id="strategyAdvice" class="strategy-copy">
+                {% if game.awaiting_bet %}
+                Place a bet to deal the next hand.
+                {% elif game.round_complete and game.last_result %}
+                Round complete. {{ game.last_result }}
+                {% elif game.dealer.hand %}
+                Suggested move: {{ game.determine_best_move(game.player.hand, game.dealer.hand[0]) }}
+                {% else %}
+                Waiting for the next hand.
+                {% endif %}
+            </p>
         </div>
-    </div>
-
-    <div class="card p-3 mb-3">
-        <div><strong>Bankroll:</strong> <span id="bankroll">{{ game.player.bankroll }}</span></div>
-        <div><strong>Current Bet:</strong> <span id="currentBet">{{ game.player.current_bet }}</span></div>
-        <div id="roundState" class="text-muted">
-            {% if game.awaiting_bet %}
-            Place a bet to deal the next hand.
-            {% else %}
-            Hand in progress.
-            {% endif %}
-        </div>
-    </div>
-
-    <div id="gameControls">
-        <button id="hitButton" class="btn btn-secondary">Hit</button>
-        <button id="standButton" class="btn btn-secondary">Stand</button>
-        <button id="doubleDownButton" class="btn btn-secondary">Double Down</button>
-        <button id="splitButton" class="btn btn-secondary">Split</button>
-        <button id="surrenderButton" class="btn btn-secondary">Surrender</button>
-        <div class="mt-2">
-            <label for="betSlider" class="form-label">Bet Amount</label>
-            <input type="range" id="betSlider" min="1" max="100" value="1" class="form-range">
-        </div>
-        <button id="betButton" class="btn btn-success">Place Bet</button>
-        <button id="newGameButton" class="btn btn-info">New Game</button>
-    </div>
-
-    <div id="statusMessages" class="mt-3"></div>
+    </aside>
 </div>
+
+<section id="seatSelectionModal" class="seat-selection-modal" hidden>
+    <div class="seat-selection-dialog">
+        <h2 class="h4 mb-3">Choose Seats</h2>
+        <p class="seat-selection-copy">
+            Select how many spots you want to play with your bankroll this round.
+        </p>
+        <label for="seatCountSelect" class="form-label">Seats</label>
+        <select id="seatCountSelect" class="form-select mb-3">
+            {% for count in range(1, 8) %}
+            <option value="{{ count }}"{% if count == game.seat_count %} selected{% endif %}>{{ count }} seat{% if count != 1 %}s{% endif %}</option>
+            {% endfor %}
+        </select>
+        <button id="seatSelectionStart" type="button" class="btn btn-warning w-100">Update Table</button>
+    </div>
+</section>
+
+{% if config.DEVTOOLS_ENABLED %}
+<button
+    id="devtoolsToggle"
+    type="button"
+    class="devtools-toggle"
+    aria-controls="devtoolsOverlay"
+    aria-expanded="false"
+>
+    Devtools
+</button>
+
+<section id="devtoolsOverlay" class="devtools-overlay" hidden>
+    <div class="devtools-overlay__header">
+        <h2 class="h5 mb-0">Frontend Devtools</h2>
+        <button id="devtoolsClose" type="button" class="btn btn-sm btn-outline-light">Close</button>
+    </div>
+    <p class="devtools-copy">
+        Force exact hands, deck order, and round state to validate logic directly in the browser.
+    </p>
+    <div class="devtools-field">
+        <label for="devtoolsScenario" class="form-label">Scenario</label>
+        <select id="devtoolsScenario" class="form-select">
+            <option value="">Custom hand</option>
+        </select>
+    </div>
+    <div class="devtools-field">
+        <label for="devtoolsPlayer" class="form-label">Player Cards</label>
+        <input id="devtoolsPlayer" class="form-control" placeholder="8-Clubs,8-Diamonds">
+    </div>
+    <div class="devtools-field">
+        <label for="devtoolsDealer" class="form-label">Dealer Cards</label>
+        <input id="devtoolsDealer" class="form-control" placeholder="6-Hearts,Q-Spades">
+    </div>
+    <div class="devtools-field">
+        <label for="devtoolsDeck" class="form-label">Next Deck Cards</label>
+        <input id="devtoolsDeck" class="form-control" placeholder="3-Clubs,K-Hearts,2-Diamonds">
+    </div>
+    <div class="devtools-grid">
+        <div class="devtools-field">
+            <label for="devtoolsBet" class="form-label">Bet</label>
+            <input id="devtoolsBet" type="number" min="1" value="100" class="form-control">
+        </div>
+        <div class="devtools-field">
+            <label for="devtoolsBankroll" class="form-label">Bankroll</label>
+            <input id="devtoolsBankroll" type="number" min="0" value="1000" class="form-control">
+        </div>
+    </div>
+    <div class="devtools-grid">
+        <div class="devtools-field">
+            <label for="devtoolsAwaitingBet" class="form-label">Awaiting Bet</label>
+            <select id="devtoolsAwaitingBet" class="form-select">
+                <option value="false" selected>false</option>
+                <option value="true">true</option>
+            </select>
+        </div>
+        <div class="devtools-field">
+            <label for="devtoolsRoundComplete" class="form-label">Round Complete</label>
+            <select id="devtoolsRoundComplete" class="form-select">
+                <option value="false" selected>false</option>
+                <option value="true">true</option>
+            </select>
+        </div>
+    </div>
+    <div class="devtools-field">
+        <label for="devtoolsLastResult" class="form-label">Last Result</label>
+        <input id="devtoolsLastResult" class="form-control" placeholder="Optional completion message">
+    </div>
+    <div class="devtools-actions">
+        <button id="devtoolsApply" type="button" class="btn btn-warning">Apply To Table</button>
+        <button id="devtoolsReset" type="button" class="btn btn-outline-light">Reset Form</button>
+    </div>
+    <div id="devtoolsStatus" class="devtools-status" aria-live="polite"></div>
+</section>
+{% endif %}
 
 <script src="{{ url_for('static', filename='js/game.js') }}"></script>
 {% endblock %}

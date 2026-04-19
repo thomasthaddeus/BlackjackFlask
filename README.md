@@ -1,111 +1,127 @@
 # Blackjack Flask Application
 
-Welcome to the Blackjack Flask Application! This project implements a classic game of Blackjack using Python's Flask framework. Below you will find information on how to set up, run, and contribute to the project.
+This repository contains a browser-based Blackjack game built with Flask, a JavaScript front end, and a Poetry-first developer workflow. The current iteration focuses on a polished table UI, multi-seat play from one bankroll, deterministic devtools, and runtime logging through Loguru.
 
 ## Overview
 
-The Blackjack Flask Application is a web-based implementation of the classic Blackjack game, built using Python's Flask framework. This project allows users to play Blackjack against a virtual dealer with features such as hit, stand, double down, and surrender.
+The app supports a full round-based Blackjack flow against a dealer, including:
 
-## Table of Contents
-
-- [Blackjack Flask Application](#blackjack-flask-application)
-  - [Overview](#overview)
-  - [Table of Contents](#table-of-contents)
-  - [Features](#features)
-  - [Installation](#installation)
-  - [Usage](#usage)
-  - [Game Rules](#game-rules)
-    - [Doubling Down](#doubling-down)
-    - [Surrender](#surrender)
-  - [API Endpoints](#api-endpoints)
-    - [Getting Started](#getting-started)
-    - [Documentation](#documentation)
-  - [Contributing](#contributing)
-  - [License](#license)
-
-## Features
-
-- **Classic Blackjack Gameplay:** Experience traditional Blackjack with standard rules.
-- **Double Down and Surrender:** Implemented game mechanics for doubling down and surrendering.
-- **Interactive Web Interface:** User-friendly interface with real-time updates using JavaScript and Bootstrap.
-- **Session-Based Game State:** Game progress and bankroll persist across requests within a browser session.
-- **Poetry-Based Workflow:** Dependencies, local setup, and CI all run through Poetry.
+- Multi-seat table setup with up to 7 occupied seats from a single bankroll
+- A persistent multi-deck shoe
+- Hit, stand, double down, split, and surrender actions
+- Basic-strategy guidance shown in the sidebar and updated during play
+- Session-backed game state so the active table survives across requests
+- Front-end and CLI devtools for seeding exact hands and scenarios
+- Poetry-based setup for local development, tests, docs, and CI
 
 ## Installation
 
-To get started with the Blackjack Flask application, follow these steps:
+1. Clone the repository.
 
-1. **Clone the repository:**
+```bash
+git clone https://github.com/thomasthaddeus/BlackjackFlask.git
+cd BlackjackFlask
+```
 
-   ```bash
-   git clone https://github.com/thomasthaddeus/BlackjackFlask.git
-   cd BlackjackFlask
-   ```
+2. Install dependencies with Poetry.
 
-2. **Install Poetry** if it is not already available.
+```bash
+poetry install --with dev,docs
+```
 
-3. **Install the required dependencies:**
+3. Run the development server.
 
-   ```bash
-   poetry install
-   ```
+```bash
+poetry run python run.py
+```
 
-4. **Run the application:**
+4. Open the app at `http://127.0.0.1:5001`.
 
-   ```bash
-   poetry run python run.py
-   ```
+## Runtime Configuration
 
-   To enable runtime logging:
+The application reads configuration from environment variables and `FLASK_CONFIG`.
 
-   ```bash
-   poetry run python run.py --log-level INFO
-   ```
+Common options:
 
-## Usage
+- `FLASK_CONFIG=DevelopmentConfig|TestingConfig|ProductionConfig`
+- `PORT=5001`
+- `BLACKJACK_LOG_LEVEL=TRACE|DEBUG|INFO|SUCCESS|WARNING|ERROR|CRITICAL`
+- `BLACKJACK_LOG_SINK` to override the log file path
+- `BLACKJACK_LOG_RETENTION=14` to control how many rotated logs to keep
+- `BLACKJACK_LOG_TO_CONSOLE=1` to keep console logging enabled
+- `BLACKJACK_DEVTOOLS=1` to enable the browser overlay outside testing and development defaults
 
-After running the application, open your browser and navigate to `http://127.0.0.1:5001` to start playing Blackjack.
+Example:
 
-## Game Rules
+```bash
+poetry run python run.py --log-level DEBUG
+```
 
-### Doubling Down
+By default, logs are written under `logs/` using timestamped filenames like `logs/blackjack-YYYYMMDDHHMMSS.log`, rotated daily or at roughly 10 MB, with a fixed retention window.
 
-- Allowed when the cards total 9, 10, or 11 without an ace, or when the cards total 16, 17, or 18 with an ace.
+## Gameplay Flow
 
-### Surrender
+When the player first enters the game, the app opens a seat-selection modal. From there the user chooses how many seats to play from the shared bankroll.
 
-- **Early Surrender:** Available before the dealer checks for blackjack.
-- **Late Surrender:** Available after the dealer checks for blackjack.
-- **When to Surrender:**
-  - Surrender with a hard 16 against a dealer's 9, 10, or ace (except two 8s).
-  - Surrender with a hard 15 against a dealer's 10.
+During play:
 
-## API Endpoints
+- The dealer hand stays centered at the top of the table
+- Up to 7 seat positions render around the semicircle
+- The active seat is highlighted directly on the table
+- The active seat's hands render in the large player area
+- Betting, strategy guidance, and table status appear in the right sidebar
 
-- `POST /blackjack/start`: Resets the game while preserving the player's bankroll
-- `POST /blackjack/bet`: Places a bet and deals a fresh hand
-- `POST /blackjack/action/hit`: Draws a card for the active hand
-- `POST /blackjack/action/stand`: Ends the active hand
-- `POST /blackjack/action/double_down`: Doubles the active hand when allowed
-- `POST /blackjack/action/split`: Splits the active hand when allowed
-- `POST /blackjack/action/surrender`: Surrenders the active hand
+## Developer Workflow
 
-### Getting Started
+Install dependencies:
 
-To set up and run the application locally, follow the detailed instructions provided in the [Installation](docs/source/installation.rst) section of the documentation.
+```bash
+poetry install --with dev,docs
+```
 
-### Documentation
+Run tests:
 
-Build the Sphinx documentation locally with:
+```bash
+poetry run pytest -q
+```
+
+Build documentation:
 
 ```bash
 poetry run sphinx-build -b html docs/source docs/_build
 ```
 
-## Contributing
+Run the CLI devtools harness:
 
-We welcome contributions from the community. Please see the [Contributing](docs/source/contributing.rst) section for guidelines on how to contribute to the project.
+```bash
+poetry run python -m app.tools.devtools --scenario split_eights --action hit --action stand --log-level DEBUG
+```
+
+## API Endpoints
+
+Primary gameplay routes:
+
+- `GET /blackjack/`
+- `POST /blackjack/start`
+- `POST /blackjack/bet`
+- `GET /blackjack/game_status`
+- `POST /blackjack/action/<action>`
+- `POST /blackjack/double_down`
+- `POST /blackjack/split`
+
+Developer-only routes when devtools are enabled:
+
+- `GET /blackjack/devtools/options`
+- `POST /blackjack/devtools/seed`
+
+## Documentation
+
+Sphinx source files live under `docs/source`. The generated HTML output can be built locally with Poetry:
+
+```bash
+poetry run sphinx-build -b html docs/source docs/_build
+```
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.

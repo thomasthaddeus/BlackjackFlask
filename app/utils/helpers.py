@@ -1,12 +1,36 @@
-# app/utils/helpers
-
 import os
 import sys
+from datetime import datetime
+from pathlib import Path
 from flask import session
 from loguru import logger
 
 
 _LOGGING_CONFIGURED = False
+_LOG_FILE_SIZE_LIMIT = 10 * 1024 * 1024
+
+
+def _project_log_path():
+    """Return the default timestamped log file path under the repo logs folder."""
+    logs_dir = Path(__file__).resolve().parents[2] / "logs"
+    logs_dir.mkdir(parents=True, exist_ok=True)
+    return logs_dir / "blackjack-{time:YYYYMMDDHHmmss}.log"
+
+
+def _rotate_daily_or_size(message, file_object):
+    """Rotate when the day changes or the current log exceeds 10 MB."""
+    record_time = message.record["time"]
+    file_path = Path(file_object.name)
+    try:
+        if not file_path.exists():
+            return False
+        file_stats = file_path.stat()
+        if file_stats.st_size >= _LOG_FILE_SIZE_LIMIT:
+            return True
+    except OSError:
+        return False
+    file_date = datetime.fromtimestamp(file_stats.st_mtime).date()
+    return record_time.date() != file_date
 
 
 def setup_logging(name=None, level=None):
@@ -15,13 +39,23 @@ def setup_logging(name=None, level=None):
 
     log_level = level or os.getenv("BLACKJACK_LOG_LEVEL", "WARNING").upper()
     if not _LOGGING_CONFIGURED:
-        sink = os.getenv("BLACKJACK_LOG_SINK")
+        sink = os.getenv("BLACKJACK_LOG_SINK") or str(_project_log_path())
+        keep_console = os.getenv("BLACKJACK_LOG_TO_CONSOLE", "1") == "1"
+        retention = int(os.getenv("BLACKJACK_LOG_RETENTION", "14"))
         logger.remove()
         logger.add(
-            sink or sys.stderr,
+            sink,
             level=log_level,
             format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {extra[name]} | {message}",
+            rotation=_rotate_daily_or_size,
+            retention=retention,
         )
+        if keep_console:
+            logger.add(
+                sys.stderr,
+                level=log_level,
+                format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {extra[name]} | {message}",
+            )
         _LOGGING_CONFIGURED = True
 
     return logger.bind(name=name or "BlackjackGame")
@@ -51,6 +85,19 @@ def calculate_hand_value(hand):
         total -= 10
         aces -= 1
     return total
+
+def format_hand_value(hand):
+    """Return a display-friendly hand total, including soft totals when useful."""
+    total = calculate_hand_value(hand)
+    aces = sum(1 for card in hand if card.rank == "A")
+    if not aces:
+        return str(total)
+
+    hard_total = sum(1 if card.rank == "A" else assign_value(card.rank) for card in hand)
+    soft_total = hard_total + 10
+    if soft_total <= 21 and soft_total != hard_total:
+        return f"{hard_total} / {soft_total}"
+    return str(total)
 
 def assign_value(rank):
     """Calculate the value of a card, special handling for aces."""

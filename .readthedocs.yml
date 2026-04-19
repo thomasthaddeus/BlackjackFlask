@@ -19,9 +19,9 @@ python:
 
 # Additional configurations (optional)
 build:
-  os: "ubuntu-22.04"
+  os: "latest"
   tools:
-    python: "3.11"
+    python: "latest"
     # image: latest  # Use the latest image for the build environment
 
 # Submodules configuration (if your project has submodules)

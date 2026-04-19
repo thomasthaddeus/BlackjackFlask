@@ -1,49 +1,41 @@
-"""blackjack/routes.py
+"""Routes for the blackjack game."""
 
-This module defines the routes for the blackjack game.
+from __future__ import annotations
 
-Returns:
-    Various types based on the routes, primarily dealing with game state and player actions.
-"""
+from flask import Blueprint, current_app, flash, jsonify, render_template, request, url_for
 
-from flask import (
-    Blueprint,
-    render_template,
-    url_for,
-    request,
-    flash,
-    jsonify,
-)
 from .models import Game
-from ..utils import save_game_state, load_game_state, setup_logging
+from ..tools.devtools_core import build_seeded_game, list_scenarios, parse_cards
+from ..utils import load_game_state, save_game_state, setup_logging
 
-logger = setup_logging()
+
+logger = setup_logging("routes")
 blackjack_bp = Blueprint("blackjack", __name__, template_folder="templates")
 
 
 def _card_label(card):
-    """Format a card for display."""
     return f"{card.rank} of {card.suit}"
 
 
-def _hand_payload(game):
-    """Return display information for every player hand."""
+def _active_hand_payload(game):
+    """Return display information for every hand on the active seat."""
     hands = []
     for index, hand in enumerate(game.player.hands):
         hands.append(
             {
                 "label": f"Hand {index + 1}",
                 "cards": ", ".join(_card_label(card) for card in hand) or "No cards dealt yet.",
-                "value": game.player.hand_value(hand),
+                "value": game.player.hand_value_display(hand),
                 "bet": game.player.hand_bets[index],
                 "isActive": index == game.player.active_hand_index,
+                "state": game.player.hand_states[index],
+                "result": game.player.hand_results[index],
             }
         )
     return hands
 
 
 def _dealer_display(game):
-    """Return the dealer hand string for the current game state."""
     if not game.dealer.hand:
         return "No cards dealt yet."
     if game.round_complete:
@@ -54,54 +46,170 @@ def _dealer_display(game):
     return f"{visible_card}, Hidden"
 
 
+def _seat_payloads(game):
+    """Return all seven table spots, including empty placeholders."""
+    seat_slots = [
+        {
+            "position": position,
+            "occupied": False,
+            "label": f"Seat {position + 1}",
+            "cards": [],
+            "hands": [],
+            "bet": 0,
+            "value": "",
+            "isActive": False,
+        }
+        for position in range(7)
+    ]
+    for index, seat in enumerate(game.seats):
+        compact_hands = []
+        for hand_index, hand in enumerate(seat.hands):
+            compact_hands.append(
+                {
+                    "cards": [card.serialize() for card in hand],
+                    "value": seat.hand_value_display(hand),
+                    "isActive": hand_index == seat.active_hand_index,
+                    "state": seat.hand_states[hand_index],
+                }
+            )
+        seat_slots[seat.table_position] = {
+            "position": seat.table_position,
+            "occupied": True,
+            "label": seat.name,
+            "cards": [card.serialize() for card in seat.hand],
+            "hands": compact_hands,
+            "bet": sum(seat.hand_bets),
+            "value": seat.hand_value_display(),
+            "isActive": index == game.active_seat_index and not game.awaiting_bet,
+        }
+    return seat_slots
+
+
 def _game_payload(game, message):
     """Build the JSON payload used by the front end."""
-    active_hand = game.player.hand
-    dealer_value = game.dealer.hand_value() if game.round_complete else "Hidden"
+    active_hand = game.player.hand if game.seats else []
+    dealer_value = game.dealer.hand_value_display() if game.round_complete else "Hidden"
     player_hand = ", ".join(_card_label(card) for card in active_hand) or "No cards dealt yet."
+    strategy_advice = "Choose seats and place a bet to deal the next hand."
+    if game.awaiting_bet and game.seat_count:
+        strategy_advice = "Place a bet to deal the next hand."
+    if not game.awaiting_bet and active_hand and game.dealer.hand and game.player.current_state == "playing":
+        strategy_advice = f"Suggested move: {game.determine_best_move(active_hand, game.dealer.hand[0])}"
+    elif game.round_complete and game.last_result:
+        strategy_advice = f"Round complete. {game.last_result}"
     return {
         "message": message,
         "game": game.serialize(),
         "playerHand": player_hand,
         "dealerHand": _dealer_display(game),
-        "playerValue": game.player.hand_value() if active_hand else 0,
+        "playerValue": game.player.hand_value_display() if active_hand else 0,
         "dealerValue": dealer_value,
-        "bankroll": game.player.bankroll,
-        "currentBet": game.player.current_bet,
-        "playerHands": _hand_payload(game),
+        "bankroll": game.bankroll,
+        "currentBet": game.player.current_bet if game.seats else 0,
+        "playerHands": _active_hand_payload(game),
         "activeHandIndex": game.player.active_hand_index,
-        "canSplit": game.player.can_split(),
+        "activeSeatIndex": game.active_seat_index,
+        "activeSeatLabel": game.player.name if game.seats else "",
+        "canSplit": game.player.can_split(game.bankroll),
+        "canDoubleDown": game.double_down(active_hand),
+        "canSurrender": bool(game.dealer.hand) and game.surrender(active_hand, game.dealer.hand[0]),
         "awaitingBet": game.awaiting_bet,
         "roundComplete": game.round_complete,
         "lastResult": game.last_result,
+        "strategyAdvice": strategy_advice,
         "statusUrl": url_for("blackjack.game_status"),
+        "seats": _seat_payloads(game),
+        "seatCount": game.seat_count,
+        "shoeRemaining": game.deck.remaining(),
+        "shoeDecks": game.shoe_decks,
     }
+
+
+def _devtools_enabled():
+    return bool(current_app.config.get("DEVTOOLS_ENABLED"))
+
 
 @blackjack_bp.route("/")
 def index():
-    """Render the index page."""
     logger.debug("Rendering blackjack index.")
     return render_template("index.html")
 
+
+@blackjack_bp.route("/devtools/options")
+def devtools_options():
+    if not _devtools_enabled():
+        return jsonify({"error": "Developer tools are disabled."}), 404
+    return jsonify({"enabled": True, "scenarios": list_scenarios()})
+
+
+@blackjack_bp.route("/devtools/seed", methods=["POST"])
+def devtools_seed():
+    if not _devtools_enabled():
+        return jsonify({"error": "Developer tools are disabled."}), 404
+
+    request_data = request.get_json(silent=True) or {}
+    try:
+        scenario_name = request_data.get("scenario")
+        if scenario_name:
+            scenario_map = {scenario["name"]: scenario for scenario in list_scenarios()}
+            scenario = scenario_map.get(scenario_name)
+            if scenario is None:
+                raise ValueError(f"Unknown scenario '{scenario_name}'.")
+            player_cards = [Game._deserialize_card(card_data) for card_data in scenario["player"]]
+            dealer_cards = [Game._deserialize_card(card_data) for card_data in scenario["dealer"]]
+            deck_cards = [Game._deserialize_card(card_data) for card_data in scenario["deck"]]
+            bet = int(request_data.get("bet", scenario["bet"]))
+            bankroll = int(request_data.get("bankroll", scenario["bankroll"]))
+        else:
+            player_cards = parse_cards(request_data.get("player"))
+            dealer_cards = parse_cards(request_data.get("dealer"))
+            deck_cards = parse_cards(request_data.get("deck"))
+            bet = int(request_data.get("bet", 100))
+            bankroll = int(request_data.get("bankroll", 1000))
+
+        if not player_cards or not dealer_cards:
+            raise ValueError("Provide both player and dealer cards to seed a test hand.")
+
+        game = build_seeded_game(
+            player_cards=player_cards,
+            dealer_cards=dealer_cards,
+            deck_cards=deck_cards,
+            bet=bet,
+            bankroll=bankroll,
+            active_hand_index=int(request_data.get("activeHandIndex", 0)),
+            awaiting_bet=bool(request_data.get("awaitingBet", False)),
+            round_complete=bool(request_data.get("roundComplete", False)),
+            last_result=request_data.get("lastResult", ""),
+        )
+        save_game_state(game)
+        return jsonify(_game_payload(game, "Devtools scenario applied."))
+    except ValueError as error:
+        logger.warning("Devtools seed rejected: {error}", error=str(error))
+        return jsonify({"error": str(error)}), 400
+
+
 @blackjack_bp.route("/start", methods=["POST"])
 def start_game():
-    """Start a new game and save it to the session."""
+    """Start or reset the table and configure seat count if requested."""
+    request_data = request.get_json(silent=True) or {}
+    seat_count = request_data.get("seatCount")
+    if seat_count is None:
+        seat_count = request.form.get("seatCount", type=int)
+
     game = load_game_state()
     if game is None:
-        logger.info("Starting first game for session.")
-        game = Game()
+        game = Game(seat_count=seat_count or 1)
     else:
-        logger.info("Starting new game while preserving bankroll.")
-        game.reset_for_new_game()
+        game.reset_for_new_game(seat_count=seat_count or game.seat_count)
     save_game_state(game)
-    return jsonify(_game_payload(game, "New game ready. Place a bet to deal the next hand."))
+    return jsonify(_game_payload(game, "Table ready. Place a bet to deal the next hand."))
+
 
 @blackjack_bp.route("/bet", methods=["POST"])
 def place_bet():
-    """Place a bet for the current game."""
+    """Place the same opening bet on every occupied seat."""
     game = load_game_state()
     if not game:
-        logger.warning("Bet attempted without an active game.")
         return jsonify({"error": "Start a new game before betting."}), 400
 
     request_data = request.get_json(silent=True) or {}
@@ -110,129 +218,102 @@ def place_bet():
         bet = request.form.get("bet", type=int)
     else:
         bet = int(bet)
+
     try:
-        if not game.awaiting_bet and game.player.hand:
-            logger.warning("Bet attempted while round is still active.")
+        if not game.awaiting_bet and any(seat.hands[0] for seat in game.seats):
             return jsonify({"error": "Finish the current hand before placing another bet."}), 400
-        game.player.place_bet(bet)
+        game.place_bets(bet)
         game.start_new_round()
-        game.player.current_bet = bet
         save_game_state(game)
-        logger.info("Accepted bet {bet} and dealt a new hand.", bet=bet)
-        return jsonify(_game_payload(game, f"Bet placed: {bet}. New hand dealt."))
-    except ValueError as e:
-        logger.warning("Rejected bet: {error}", error=str(e))
-        return jsonify({"error": str(e)}), 400
+        return jsonify(_game_payload(game, f"Bet placed: {bet} on {game.seat_count} seats. New hand dealt."))
+    except ValueError as error:
+        return jsonify({"error": str(error)}), 400
+
 
 @blackjack_bp.route("/game_status")
 def game_status():
-    """Render the game status page."""
     game = load_game_state()
     if not game:
         flash("No active game found. Please start a new game.")
-        logger.info("Game status requested without active game.")
         return render_template("index.html")
-    logger.debug("Rendering game status page.")
     return render_template("status.html", game=game)
+
 
 @blackjack_bp.route("/action/<action>", methods=["POST"])
 def handle_action(action):
-    """Handle player actions like hit, stand, double down, split, and surrender."""
+    """Handle player actions on the current active seat."""
     game = load_game_state()
     if not game:
-        logger.warning("Action {action} attempted without active game.", action=action)
         return jsonify({"error": "No game in progress"}), 400
 
-    try:
-        if game.awaiting_bet and not game.player.hand:
-            logger.warning("Action {action} attempted before placing a bet.", action=action)
-            return jsonify({"error": "Place a bet before taking an action."}), 400
-        logger.info("Handling action {action} on hand {hand_index}.", action=action, hand_index=game.player.active_hand_index + 1)
-        if action == "hit":
-            game.player.add_card(game.deck.deal())
-            if game.player.hand_value() > 21:
-                round_finished = game._advance_or_resolve()
-                if round_finished:
-                    save_game_state(game)
-                    return jsonify(_game_payload(game, "Hand busted. Round resolved."))
-                save_game_state(game)
-                return jsonify(
-                    _game_payload(
-                        game,
-                        f"Hand busted. Moved to hand {game.player.active_hand_index + 1}.",
-                    )
-                )
-        elif action == "stand":
-            round_finished = game._advance_or_resolve()
-            if round_finished:
-                save_game_state(game)
-                return jsonify(_game_payload(game, "Round resolved."))
-            save_game_state(game)
-            return jsonify(
-                _game_payload(
-                    game,
-                    f"Moved to hand {game.player.active_hand_index + 1}.",
-                )
-            )
-        elif action == "double_down":
-            if game.double_down(game.player.hand):
-                game.player.add_card(game.deck.deal())
-                round_finished = game._advance_or_resolve()
-                if round_finished:
-                    save_game_state(game)
-                    return jsonify(_game_payload(game, "Performed double_down and resolved the round."))
-                save_game_state(game)
-                return jsonify(
-                    _game_payload(
-                        game,
-                        f"Performed double_down. Moved to hand {game.player.active_hand_index + 1}.",
-                    )
-                )
-            else:
-                return jsonify({"error": "Double down not allowed"}), 400
-        elif action == "split":
-            game.player.split(game.deck)
-        elif action == "surrender":
-            game.handle_surrender()
-        else:
-            logger.warning("Invalid action requested: {action}", action=action)
-            return jsonify({"error": "Invalid action"}), 400
+    if game.awaiting_bet and not any(seat.hands[0] for seat in game.seats):
+        return jsonify({"error": "Place a bet before taking an action."}), 400
 
-        save_game_state(game)  # Save changes to session
-        message = game.last_result if game.round_complete and game.last_result else f"Performed {action}"
-        return jsonify(_game_payload(game, message))
-    except ValueError as e:
-        logger.warning("Action {action} failed: {error}", action=action, error=str(e))
-        return jsonify({"error": str(e)}), 400
+    try:
+        current_seat = game.player
+        if current_seat.current_state != "playing":
+            return jsonify({"error": "This hand is no longer active."}), 400
+
+        if action == "hit":
+            current_seat.add_card(game.deck.deal())
+            if current_seat.hand_value() > 21:
+                current_seat.mark_current_hand("resolved", "lose")
+                game.settle_hand(current_seat, current_seat.active_hand_index, "lose")
+                finished = game._advance_or_resolve()
+                save_game_state(game)
+                if finished:
+                    return jsonify(_game_payload(game, "Hand busted. Round resolved."))
+                return jsonify(_game_payload(game, f"Hand busted. Moved to {game.player.name} Hand {game.player.active_hand_index + 1}."))
+            save_game_state(game)
+            return jsonify(_game_payload(game, f"Performed hit on {current_seat.name}."))
+
+        if action == "stand":
+            current_seat.mark_current_hand("stood")
+            finished = game._advance_or_resolve()
+            save_game_state(game)
+            if finished:
+                return jsonify(_game_payload(game, "Round resolved."))
+            return jsonify(_game_payload(game, f"Moved to {game.player.name} Hand {game.player.active_hand_index + 1}."))
+
+        if action == "double_down":
+            if not game.double_down(current_seat.hand):
+                return jsonify({"error": "Double down not allowed"}), 400
+            current_index = current_seat.active_hand_index
+            current_seat.hand_bets[current_index] *= 2
+            current_seat.add_card(game.deck.deal())
+            if current_seat.hand_value() > 21:
+                current_seat.set_hand_state(current_index, "resolved", "lose")
+                game.settle_hand(current_seat, current_index, "lose")
+            else:
+                current_seat.set_hand_state(current_index, "stood")
+            finished = game._advance_or_resolve()
+            save_game_state(game)
+            if finished:
+                return jsonify(_game_payload(game, "Performed double down and resolved the round."))
+            return jsonify(_game_payload(game, f"Performed double down. Moved to {game.player.name} Hand {game.player.active_hand_index + 1}."))
+
+        if action == "split":
+            if not current_seat.can_split(game.bankroll):
+                return jsonify({"error": "Cannot split this hand"}), 400
+            current_seat.split(game.deck)
+            save_game_state(game)
+            return jsonify(_game_payload(game, f"Split {current_seat.name} into two hands."))
+
+        if action == "surrender":
+            game.handle_surrender()
+            save_game_state(game)
+            return jsonify(_game_payload(game, game.last_result or "Surrender"))
+
+        return jsonify({"error": "Invalid action"}), 400
+    except ValueError as error:
+        return jsonify({"error": str(error)}), 400
+
 
 @blackjack_bp.route("/double_down", methods=["POST"])
 def double_down():
-    """Handle double down action."""
-    game = load_game_state()
-    if not game or not game.double_down(game.player.hand):
-        logger.warning("Double down requested when not allowed.")
-        return jsonify({"error": "Double down not allowed at this stage."}), 400
+    return handle_action("double_down")
 
-    game.player.place_bet(game.player.current_bet)  # Double the bet
-    game.player.add_card(game.deck.deal())
-    save_game_state(game)
-    logger.info("Double down route completed successfully.")
-    return jsonify(_game_payload(game, "Performed double_down"))
 
 @blackjack_bp.route("/split", methods=["POST"])
 def split():
-    """Handle split action."""
-    game = load_game_state()
-    if not game:
-        logger.warning("Split requested without an active game.")
-        return jsonify({"error": "No game in progress"}), 400
-
-    try:
-        game.player.split(game.deck)
-    except ValueError as e:
-        logger.warning("Split rejected: {error}", error=str(e))
-        return jsonify({"error": str(e)}), 400
-
-    save_game_state(game)
-    logger.info("Split route completed successfully.")
-    return jsonify(_game_payload(game, "Performed split"))
+    return handle_action("split")
