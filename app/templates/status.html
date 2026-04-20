@@ -53,27 +53,6 @@
                 <div class="seat-marker seat-6"><div id="seatSpot5" class="seat-spot"></div></div>
                 <div class="seat-marker seat-7"><div id="seatSpot6" class="seat-spot"></div></div>
             </div>
-            <div class="table-panel hand-panel player-panel">
-                <div id="playerHands" class="player-hands-grid">
-                    {% for hand in game.player.hands %}
-                    <div class="split-hand-panel{% if loop.index0 == game.player.active_hand_index %} active{% endif %}">
-                        <div class="split-hand-header">
-                            <span>Hand {{ loop.index }}{% if loop.index0 == game.player.active_hand_index %} (active){% endif %}</span>
-                            <span>Value: {{ game.player.hand_value_display(hand) }}</span>
-                        </div>
-                        <div class="card-row">
-                            {% if hand %}
-                                {% for card in hand %}
-                                {{ card.rank }} of {{ card.suit }}{% if not loop.last %}, {% endif %}
-                                {% endfor %}
-                            {% else %}
-                            No cards dealt yet.
-                            {% endif %}
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
         </div>
 
         <div class="table-panel controls-panel">
@@ -129,17 +108,43 @@
                     <span class="strategy-help-popup">Follow the recommended move based on your active hand and the dealer's up card.</span>
                 </button>
             </div>
-            <p id="strategyAdvice" class="strategy-copy">
+            <div id="strategyAdvice" class="strategy-copy">
                 {% if game.awaiting_bet %}
                 Place a bet to deal the next hand.
                 {% elif game.round_complete and game.last_result %}
-                Round complete. {{ game.last_result }}
+                <div class="strategy-summary">Round complete.</div>
+                <ul class="strategy-list">
+                    {% for item in game.last_result.split(', ') %}
+                    <li>{{ item }}</li>
+                    {% endfor %}
+                </ul>
                 {% elif game.dealer.hand %}
                 Suggested move: {{ game.determine_best_move(game.player.hand, game.dealer.hand[0]) }}
                 {% else %}
                 Waiting for the next hand.
                 {% endif %}
-            </p>
+            </div>
+        </div>
+        <div class="strategy-dialog player-sidebar-panel mt-3">
+            <div id="playerHands" class="player-hands-grid">
+                {% for hand in game.player.hands %}
+                <div class="split-hand-panel{% if loop.index0 == game.player.active_hand_index %} active{% endif %}">
+                    <div class="split-hand-header">
+                        <span>Hand {{ loop.index }}{% if loop.index0 == game.player.active_hand_index %} (active){% endif %}</span>
+                        <span>Value: {{ game.player.hand_value_display(hand) }}</span>
+                    </div>
+                    <div class="card-row">
+                        {% if hand %}
+                            {% for card in hand %}
+                            {{ card.rank }} of {{ card.suit }}{% if not loop.last %}, {% endif %}
+                            {% endfor %}
+                        {% else %}
+                        No cards dealt yet.
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
         </div>
     </aside>
 </div>

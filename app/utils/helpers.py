@@ -17,6 +17,13 @@ def _project_log_path():
     return logs_dir / "blackjack-{time:YYYYMMDDHHmmss}.log"
 
 
+def _prepare_sink_path(raw_sink):
+    """Normalize a configured file sink and ensure its parent directory exists."""
+    sink_path = Path(raw_sink)
+    sink_path.parent.mkdir(parents=True, exist_ok=True)
+    return str(sink_path)
+
+
 def _rotate_daily_or_size(message, file_object):
     """Rotate when the day changes or the current log exceeds 10 MB."""
     record_time = message.record["time"]
@@ -39,16 +46,22 @@ def setup_logging(name=None, level=None):
 
     log_level = level or os.getenv("BLACKJACK_LOG_LEVEL", "WARNING").upper()
     if not _LOGGING_CONFIGURED:
-        sink = os.getenv("BLACKJACK_LOG_SINK") or str(_project_log_path())
+        configured_sink = os.getenv("BLACKJACK_LOG_SINK")
+        sink = _prepare_sink_path(configured_sink) if configured_sink else str(_project_log_path())
         keep_console = os.getenv("BLACKJACK_LOG_TO_CONSOLE", "1") == "1"
         retention = int(os.getenv("BLACKJACK_LOG_RETENTION", "14"))
+        sink_supports_rotation = "{time" in sink
         logger.remove()
-        logger.add(
-            sink,
+        file_sink_options = dict(
             level=log_level,
             format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {extra[name]} | {message}",
-            rotation=_rotate_daily_or_size,
-            retention=retention,
+        )
+        if sink_supports_rotation:
+            file_sink_options["rotation"] = _rotate_daily_or_size
+            file_sink_options["retention"] = retention
+        logger.add(
+            sink,
+            **file_sink_options,
         )
         if keep_console:
             logger.add(

@@ -106,6 +106,7 @@ body {
   position: relative;
   margin-top: 4px;
   padding: 124px 14px 20px;
+  min-height: 420px;
   border-radius: 26px 26px 220px 220px;
   overflow: hidden;
   background:
@@ -131,8 +132,7 @@ body {
 }
 
 .table-lettering,
-.seat-arc,
-.player-panel {
+.seat-arc {
   position: relative;
   z-index: 1;
 }
@@ -212,8 +212,7 @@ body {
   pointer-events: none;
 }
 
-.seat-arc::before,
-.seat-arc::after {
+.seat-arc::before {
   content: "";
   position: absolute;
   left: 50%;
@@ -222,17 +221,10 @@ body {
 }
 
 .seat-arc::before {
-  top: 78px;
+  top: 104px;
   width: calc(100% - 160px);
   height: 150px;
   border-bottom: 3px solid rgba(255, 248, 230, 0.78);
-}
-
-.seat-arc::after {
-  top: 112px;
-  width: calc(100% - 244px);
-  height: 112px;
-  border-bottom: 3px solid rgba(245, 211, 93, 0.72);
 }
 
 .seat-marker {
@@ -244,13 +236,13 @@ body {
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
-.seat-1 { --seat-tilt: 34deg; top: 64px; left: 54px; transform: rotate(var(--seat-tilt)); }
-.seat-2 { --seat-tilt: 22deg; top: 128px; left: 118px; transform: rotate(var(--seat-tilt)); }
-.seat-3 { --seat-tilt: 9deg; top: 176px; left: 218px; transform: rotate(var(--seat-tilt)); }
-.seat-4 { --seat-tilt: 0deg; top: 198px; left: 50%; margin-left: -34px; transform: rotate(var(--seat-tilt)); }
-.seat-5 { --seat-tilt: -9deg; top: 176px; right: 218px; transform: rotate(var(--seat-tilt)); }
-.seat-6 { --seat-tilt: -22deg; top: 128px; right: 118px; transform: rotate(var(--seat-tilt)); }
-.seat-7 { --seat-tilt: -34deg; top: 64px; right: 54px; transform: rotate(var(--seat-tilt)); }
+.seat-1 { --seat-tilt: 34deg; top: 108px; left: 60px; transform: rotate(var(--seat-tilt)); }
+.seat-2 { --seat-tilt: 22deg; top: 164px; left: 134px; transform: rotate(var(--seat-tilt)); }
+.seat-3 { --seat-tilt: 9deg; top: 214px; left: 232px; transform: rotate(var(--seat-tilt)); }
+.seat-4 { --seat-tilt: 0deg; top: 232px; left: 50%; margin-left: -34px; transform: rotate(var(--seat-tilt)); }
+.seat-5 { --seat-tilt: -9deg; top: 214px; right: 232px; transform: rotate(var(--seat-tilt)); }
+.seat-6 { --seat-tilt: -22deg; top: 164px; right: 134px; transform: rotate(var(--seat-tilt)); }
+.seat-7 { --seat-tilt: -34deg; top: 108px; right: 60px; transform: rotate(var(--seat-tilt)); }
 
 .seat-spot {
   position: absolute;
@@ -258,6 +250,27 @@ body {
   top: 50%;
   width: 120px;
   transform: translate(-50%, -50%) rotate(calc(-1 * var(--seat-tilt)));
+  overflow: visible;
+}
+
+.seat-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.seat-pod__bet-chip {
+  min-width: 58px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(46, 26, 22, 0.92);
+  border: 1px solid rgba(212, 179, 106, 0.32);
+  color: #fff0a6;
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.2;
 }
 
 .seat-pod {
@@ -284,44 +297,32 @@ body {
   text-align: center;
 }
 
-.seat-pod__meta {
+.seat-pod__value-summary {
+  white-space: nowrap;
+  color: var(--cream);
+  font-size: 0.78rem;
+  font-weight: 700;
+  align-self: center;
+}
+
+.seat-pod__body {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 4px;
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: var(--cream);
-}
-
-.seat-pod__label {
-  white-space: nowrap;
-}
-
-.seat-pod__bet {
-  color: #fff0a6;
 }
 
 .seat-pod__hands {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  min-width: 0;
 }
 
 .compact-hand {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-}
-
-.compact-hand--active .compact-hand__value {
-  color: #fff0a6;
-}
-
-.compact-hand__value {
-  font-size: 0.68rem;
-  font-weight: 700;
-  color: var(--text-soft);
+  gap: 0;
 }
 
 .compact-card-stack {
@@ -383,25 +384,24 @@ body {
   color: var(--text-soft);
 }
 
-.player-panel {
-  margin-top: 150px;
-  background: transparent;
-  border-color: transparent;
-  box-shadow: none;
-  backdrop-filter: none;
-  padding: 0;
-}
-
 .player-hands-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 16px;
 }
 
+.player-sidebar-panel {
+  padding: 14px 16px;
+}
+
+.player-sidebar-panel .player-hands-grid {
+  gap: 12px;
+}
+
 .split-hand-panel {
   background: rgba(59, 36, 29, 0.78);
   border: 1px solid rgba(255, 248, 230, 0.14);
-  border-radius: 16px;
+  border-radius: 20px 20px 20px 28px;
   padding: 14px;
   transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
@@ -751,6 +751,20 @@ body {
   min-height: 44px;
 }
 
+.strategy-summary {
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+
+.strategy-list {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.strategy-list li + li {
+  margin-top: 4px;
+}
+
 .text-light-emphasis {
   color: var(--text-soft) !important;
 }
@@ -781,16 +795,12 @@ body {
 
   .table-felt-shell {
     padding-top: 154px;
+    min-height: 360px;
   }
 
   .seat-arc::before {
     width: calc(100% - 104px);
-    top: 86px;
-  }
-
-  .seat-arc::after {
-    width: calc(100% - 172px);
-    top: 118px;
+    top: 108px;
   }
 
   .seat-marker {
@@ -798,16 +808,12 @@ body {
     height: 84px;
   }
 
-  .seat-1 { left: 24px; top: 64px; }
-  .seat-2 { left: 56px; top: 126px; }
-  .seat-3 { left: 138px; top: 190px; }
-  .seat-5 { right: 138px; top: 190px; }
-  .seat-6 { right: 56px; top: 126px; }
-  .seat-7 { right: 24px; top: 64px; }
-
-  .player-panel {
-    margin-top: 176px;
-  }
+  .seat-1 { left: 24px; top: 104px; }
+  .seat-2 { left: 66px; top: 156px; }
+  .seat-3 { left: 146px; top: 212px; }
+  .seat-5 { right: 146px; top: 212px; }
+  .seat-6 { right: 66px; top: 156px; }
+  .seat-7 { right: 24px; top: 104px; }
 
   .seat-spot {
     width: 92px;
@@ -834,6 +840,7 @@ body {
 
   .table-felt-shell {
     padding: 142px 10px 16px;
+    min-height: 320px;
   }
 
   .table-felt-shell::before {
@@ -907,11 +914,6 @@ body {
   .seat-5 { top: 162px; right: 72px; }
   .seat-6 { top: 114px; right: 28px; }
   .seat-7 { top: 72px; right: 8px; }
-
-  .player-panel {
-    margin-top: 158px;
-    padding: 0;
-  }
 
   .devtools-toggle {
     right: 14px;

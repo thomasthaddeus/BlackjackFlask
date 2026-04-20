@@ -87,7 +87,7 @@ if (gameArea) {
     document.getElementById('dealerValue').textContent = `Value: ${data.dealerValue}`;
     document.getElementById('bankroll').textContent = data.bankroll;
     document.getElementById('statusMessages').textContent = data.message;
-    document.getElementById('strategyAdvice').textContent = data.strategyAdvice;
+    renderStrategyAdvice(data);
     document.getElementById('splitButton').disabled = !data.canSplit;
     document.getElementById('doubleDownButton').disabled = !data.canDoubleDown;
     document.getElementById('surrenderButton').disabled = !data.canSurrender;
@@ -97,6 +97,25 @@ if (gameArea) {
     betValue.textContent = betSlider.value;
     gameArea.dataset.seatCount = String(data.seatCount || 0);
 
+  }
+
+  function renderStrategyAdvice(data) {
+    const strategyAdvice = document.getElementById('strategyAdvice');
+    if (!strategyAdvice) {
+      return;
+    }
+
+    if (data.roundComplete && Array.isArray(data.strategyAdviceItems) && data.strategyAdviceItems.length) {
+      strategyAdvice.innerHTML = `
+        <div class="strategy-summary">Round complete.</div>
+        <ul class="strategy-list">
+          ${data.strategyAdviceItems.map((item) => `<li>${item}</li>`).join('')}
+        </ul>
+      `;
+      return;
+    }
+
+    strategyAdvice.textContent = data.strategyAdvice;
   }
 
   function renderHands(data) {
@@ -161,13 +180,19 @@ if (gameArea) {
       const handMarkup = (seat.hands || [])
         .map((hand, index) => renderCompactHand(hand, index === 0 && seat.isActive))
         .join('');
+      const valueSummary = (seat.hands || [])
+        .map((hand) => hand.value)
+        .filter((value) => value !== undefined && value !== null && value !== '')
+        .join(' / ');
       spot.innerHTML = `
-        <div class="seat-pod${seat.isActive ? ' seat-pod--active' : ''}">
-          <div class="seat-pod__meta">
-            <span class="seat-pod__label">${seat.label}</span>
-            <span class="seat-pod__bet">$${seat.bet}</span>
+        <div class="seat-stack">
+          <div class="seat-pod__bet-chip">$${seat.bet}</div>
+          <div class="seat-pod${seat.isActive ? ' seat-pod--active' : ''}">
+            <div class="seat-pod__body">
+              <div class="seat-pod__hands">${handMarkup || '<div class="seat-pod__empty">Waiting</div>'}</div>
+              <div class="seat-pod__value-summary">${valueSummary || '0'}</div>
+            </div>
           </div>
-          <div class="seat-pod__hands">${handMarkup || '<div class="seat-pod__empty">Waiting</div>'}</div>
         </div>
       `;
     }
@@ -189,7 +214,6 @@ if (gameArea) {
 
     return `
       <div class="compact-hand${emphasize ? ' compact-hand--active' : ''}">
-        <div class="compact-hand__value">${hand.value || ''}</div>
         <div class="compact-card-stack">${rowMarkup}</div>
       </div>
     `;

@@ -40,17 +40,6 @@
                 <div class="seat-marker seat-6"><div id="seatSpot5" class="seat-spot"></div></div>
                 <div class="seat-marker seat-7"><div id="seatSpot6" class="seat-spot"></div></div>
             </div>
-            <div class="table-panel hand-panel player-panel">
-                <div id="playerHands" class="player-hands-grid">
-                    <div class="split-hand-panel active">
-                        <div class="split-hand-header">
-                            <span>Hand 1 (active)</span>
-                            <span>Value: 0</span>
-                        </div>
-                        <div class="card-row">No cards dealt yet.</div>
-                    </div>
-                </div>
-            </div>
         </div>
 
         <div class="table-panel controls-panel">
@@ -100,7 +89,18 @@
                     <span class="strategy-help-popup">Follow the recommended move based on your active hand and the dealer's up card.</span>
                 </button>
             </div>
-            <p id="strategyAdvice" class="strategy-copy">Place a bet to deal the next hand.</p>
+            <div id="strategyAdvice" class="strategy-copy">Place a bet to deal the next hand.</div>
+        </div>
+        <div class="strategy-dialog player-sidebar-panel mt-3">
+            <div id="playerHands" class="player-hands-grid">
+                <div class="split-hand-panel active">
+                    <div class="split-hand-header">
+                        <span>Hand 1 (active)</span>
+                        <span>Value: 0</span>
+                    </div>
+                    <div class="card-row">No cards dealt yet.</div>
+                </div>
+            </div>
         </div>
     </aside>
 </div>

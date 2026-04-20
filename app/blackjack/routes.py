@@ -2,7 +2,15 @@
 
 from __future__ import annotations
 
-from flask import Blueprint, current_app, flash, jsonify, render_template, request, url_for
+from flask import (
+    Blueprint,
+    current_app,
+    flash,
+    jsonify,
+    render_template,
+    request,
+    url_for,
+)
 
 from .models import Game
 from ..tools.devtools_core import build_seeded_game, list_scenarios, parse_cards
@@ -24,7 +32,8 @@ def _active_hand_payload(game):
         hands.append(
             {
                 "label": f"Hand {index + 1}",
-                "cards": ", ".join(_card_label(card) for card in hand) or "No cards dealt yet.",
+                "cards": ", ".join(_card_label(card) for card in hand)
+                or "No cards dealt yet.",
                 "value": game.player.hand_value_display(hand),
                 "bet": game.player.hand_bets[index],
                 "isActive": index == game.player.active_hand_index,
@@ -85,18 +94,32 @@ def _seat_payloads(game):
     return seat_slots
 
 
+def _strategy_advice_items(game):
+    """Return structured round-result items for easier UI rendering."""
+    if not (game.round_complete and game.last_result):
+        return []
+    return [item.strip() for item in game.last_result.split(", ") if item.strip()]
+
+
 def _game_payload(game, message):
     """Build the JSON payload used by the front end."""
     active_hand = game.player.hand if game.seats else []
     dealer_value = game.dealer.hand_value_display() if game.round_complete else "Hidden"
-    player_hand = ", ".join(_card_label(card) for card in active_hand) or "No cards dealt yet."
+    player_hand = (
+        ", ".join(_card_label(card) for card in active_hand) or "No cards dealt yet."
+    )
     strategy_advice = "Choose seats and place a bet to deal the next hand."
     if game.awaiting_bet and game.seat_count:
         strategy_advice = "Place a bet to deal the next hand."
-    if not game.awaiting_bet and active_hand and game.dealer.hand and game.player.current_state == "playing":
+    if (
+        not game.awaiting_bet
+        and active_hand
+        and game.dealer.hand
+        and game.player.current_state == "playing"
+    ):
         strategy_advice = f"Suggested move: {game.determine_best_move(active_hand, game.dealer.hand[0])}"
     elif game.round_complete and game.last_result:
-        strategy_advice = f"Round complete. {game.last_result}"
+        strategy_advice = "Round complete."
     return {
         "message": message,
         "game": game.serialize(),
@@ -112,11 +135,13 @@ def _game_payload(game, message):
         "activeSeatLabel": game.player.name if game.seats else "",
         "canSplit": game.player.can_split(game.bankroll),
         "canDoubleDown": game.double_down(active_hand),
-        "canSurrender": bool(game.dealer.hand) and game.surrender(active_hand, game.dealer.hand[0]),
+        "canSurrender": bool(game.dealer.hand)
+        and game.surrender(active_hand, game.dealer.hand[0]),
         "awaitingBet": game.awaiting_bet,
         "roundComplete": game.round_complete,
         "lastResult": game.last_result,
         "strategyAdvice": strategy_advice,
+        "strategyAdviceItems": _strategy_advice_items(game),
         "statusUrl": url_for("blackjack.game_status"),
         "seats": _seat_payloads(game),
         "seatCount": game.seat_count,
@@ -155,9 +180,15 @@ def devtools_seed():
             scenario = scenario_map.get(scenario_name)
             if scenario is None:
                 raise ValueError(f"Unknown scenario '{scenario_name}'.")
-            player_cards = [Game._deserialize_card(card_data) for card_data in scenario["player"]]
-            dealer_cards = [Game._deserialize_card(card_data) for card_data in scenario["dealer"]]
-            deck_cards = [Game._deserialize_card(card_data) for card_data in scenario["deck"]]
+            player_cards = [
+                Game._deserialize_card(card_data) for card_data in scenario["player"]
+            ]
+            dealer_cards = [
+                Game._deserialize_card(card_data) for card_data in scenario["dealer"]
+            ]
+            deck_cards = [
+                Game._deserialize_card(card_data) for card_data in scenario["deck"]
+            ]
             bet = int(request_data.get("bet", scenario["bet"]))
             bankroll = int(request_data.get("bankroll", scenario["bankroll"]))
         else:
@@ -168,7 +199,9 @@ def devtools_seed():
             bankroll = int(request_data.get("bankroll", 1000))
 
         if not player_cards or not dealer_cards:
-            raise ValueError("Provide both player and dealer cards to seed a test hand.")
+            raise ValueError(
+                "Provide both player and dealer cards to seed a test hand."
+            )
 
         game = build_seeded_game(
             player_cards=player_cards,
@@ -202,7 +235,9 @@ def start_game():
     else:
         game.reset_for_new_game(seat_count=seat_count or game.seat_count)
     save_game_state(game)
-    return jsonify(_game_payload(game, "Table ready. Place a bet to deal the next hand."))
+    return jsonify(
+        _game_payload(game, "Table ready. Place a bet to deal the next hand.")
+    )
 
 
 @blackjack_bp.route("/bet", methods=["POST"])
@@ -221,11 +256,20 @@ def place_bet():
 
     try:
         if not game.awaiting_bet and any(seat.hands[0] for seat in game.seats):
-            return jsonify({"error": "Finish the current hand before placing another bet."}), 400
+            return (
+                jsonify(
+                    {"error": "Finish the current hand before placing another bet."}
+                ),
+                400,
+            )
         game.place_bets(bet)
         game.start_new_round()
         save_game_state(game)
-        return jsonify(_game_payload(game, f"Bet placed: {bet} on {game.seat_count} seats. New hand dealt."))
+        return jsonify(
+            _game_payload(
+                game, f"Bet placed: {bet} on {game.seat_count} seats. New hand dealt."
+            )
+        )
     except ValueError as error:
         return jsonify({"error": str(error)}), 400
 
@@ -263,9 +307,16 @@ def handle_action(action):
                 save_game_state(game)
                 if finished:
                     return jsonify(_game_payload(game, "Hand busted. Round resolved."))
-                return jsonify(_game_payload(game, f"Hand busted. Moved to {game.player.name} Hand {game.player.active_hand_index + 1}."))
+                return jsonify(
+                    _game_payload(
+                        game,
+                        f"Hand busted. Moved to {game.player.name} Hand {game.player.active_hand_index + 1}.",
+                    )
+                )
             save_game_state(game)
-            return jsonify(_game_payload(game, f"Performed hit on {current_seat.name}."))
+            return jsonify(
+                _game_payload(game, f"Performed hit on {current_seat.name}.")
+            )
 
         if action == "stand":
             current_seat.mark_current_hand("stood")
@@ -273,7 +324,12 @@ def handle_action(action):
             save_game_state(game)
             if finished:
                 return jsonify(_game_payload(game, "Round resolved."))
-            return jsonify(_game_payload(game, f"Moved to {game.player.name} Hand {game.player.active_hand_index + 1}."))
+            return jsonify(
+                _game_payload(
+                    game,
+                    f"Moved to {game.player.name} Hand {game.player.active_hand_index + 1}.",
+                )
+            )
 
         if action == "double_down":
             if not game.double_down(current_seat.hand):
@@ -289,15 +345,24 @@ def handle_action(action):
             finished = game._advance_or_resolve()
             save_game_state(game)
             if finished:
-                return jsonify(_game_payload(game, "Performed double down and resolved the round."))
-            return jsonify(_game_payload(game, f"Performed double down. Moved to {game.player.name} Hand {game.player.active_hand_index + 1}."))
+                return jsonify(
+                    _game_payload(game, "Performed double down and resolved the round.")
+                )
+            return jsonify(
+                _game_payload(
+                    game,
+                    f"Performed double down. Moved to {game.player.name} Hand {game.player.active_hand_index + 1}.",
+                )
+            )
 
         if action == "split":
             if not current_seat.can_split(game.bankroll):
                 return jsonify({"error": "Cannot split this hand"}), 400
             current_seat.split(game.deck)
             save_game_state(game)
-            return jsonify(_game_payload(game, f"Split {current_seat.name} into two hands."))
+            return jsonify(
+                _game_payload(game, f"Split {current_seat.name} into two hands.")
+            )
 
         if action == "surrender":
             game.handle_surrender()
