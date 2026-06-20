@@ -19,7 +19,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "pytest>=9.0,<10.0",
+    "pytest>=9.1.1,<10.0",
 ]
 docs = [
     "sphinx>=7.4,<8.0",
